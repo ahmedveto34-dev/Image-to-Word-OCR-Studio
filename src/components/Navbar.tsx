@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur-md transition-all shadow-xs">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md transition-all shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-4">
         
         {/* Brand Logo & Title */}
@@ -65,37 +65,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => handleTab('convert')}
           className="flex items-center gap-3 cursor-pointer group select-none"
         >
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gray-900 text-white shadow-sm group-hover:bg-black transition-colors">
-            <FileText className="w-5 h-5 text-white" />
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-amber-400 shadow-md border border-slate-700/60 group-hover:scale-105 transition-all">
+            <FileText className="w-5 h-5 text-amber-300" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white shadow-xs" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold tracking-tight text-gray-900 font-cairo">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 font-cairo bg-gradient-to-r from-slate-950 via-slate-800 to-slate-900 bg-clip-text">
                 {lang === 'ar' ? 'بصيرة وورد' : 'Basira OCR Studio'}
               </h1>
-              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs">
                 PRO OCR
               </span>
             </div>
-            <p className="text-xs text-gray-500 truncate max-w-[200px] sm:max-w-xs font-normal">
-              {lang === 'ar' ? 'تحويل الصور والكتب إلى Word منسق' : 'Image & Book to Formatted Word'}
+            <p className="text-xs text-slate-500 truncate max-w-[200px] sm:max-w-xs font-normal">
+              {lang === 'ar' ? 'تحويل الصور والكتب إلى Word منسق بدقة فائقة' : 'Image & Book to Formatted Word'}
             </p>
           </div>
         </div>
 
         {/* Navigation Segmented Control */}
-        <nav className="hidden md:flex items-center p-1 rounded-xl bg-gray-100 border border-gray-200/80">
+        <nav className="hidden md:flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs">
           <button
             id="nav-tab-convert"
             onClick={() => handleTab('convert')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               currentTab === 'convert'
-                ? 'bg-white text-gray-900 shadow-xs font-bold'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                ? 'bg-white text-slate-950 shadow-xs font-bold border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/60'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>{t.nav.convert}</span>
           </button>
 
@@ -104,14 +104,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleTab('editor')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               currentTab === 'editor'
-                ? 'bg-white text-gray-900 shadow-xs font-bold'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                ? 'bg-white text-slate-950 shadow-xs font-bold border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/60'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5 text-blue-600" />
             <span>{t.nav.editor}</span>
             {activeDocTitle && (
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
             )}
           </button>
 
@@ -120,11 +120,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleTab('books')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               currentTab === 'books'
-                ? 'bg-white text-gray-900 shadow-xs font-bold'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                ? 'bg-white text-slate-950 shadow-xs font-bold border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/60'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
+            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
             <span>{t.nav.books}</span>
           </button>
 
@@ -133,11 +133,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleTab('library')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               currentTab === 'library'
-                ? 'bg-white text-gray-900 shadow-xs font-bold'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                ? 'bg-white text-slate-950 shadow-xs font-bold border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/60'
             }`}
           >
-            <FolderArchive className="w-3.5 h-3.5" />
+            <FolderArchive className="w-3.5 h-3.5 text-indigo-600" />
             <span>{t.nav.library}</span>
           </button>
 
@@ -146,11 +146,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => handleTab('math')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               currentTab === 'math' || currentTab === 'mathVerifier'
-                ? 'bg-white text-gray-900 shadow-xs font-bold'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                ? 'bg-white text-slate-950 shadow-xs font-bold border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/60'
             }`}
           >
-            <Calculator className="w-3.5 h-3.5" />
+            <Calculator className="w-3.5 h-3.5 text-violet-600" />
             <span>{t.nav.mathVerifier}</span>
           </button>
         </nav>
@@ -159,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Cloud Sync Pill */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs font-medium text-gray-600">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600 shadow-2xs">
             <CloudCheck className="w-4 h-4 text-emerald-600" />
             <span>{t.sync.synced}</span>
           </div>
@@ -168,10 +168,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-lang-toggle"
             onClick={toggleLanguage}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 hover:text-gray-900 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors shadow-2xs"
             title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
           >
-            <Globe className="w-3.5 h-3.5 text-gray-500" />
+            <Globe className="w-3.5 h-3.5 text-slate-500" />
             <span>{t.nav.language}</span>
           </button>
 
@@ -179,9 +179,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-new-scan"
             onClick={handleScanClick}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gray-900 hover:bg-black text-white font-medium text-xs sm:text-sm shadow-xs transition-colors active:scale-98"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all active:scale-98 border border-slate-800"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-amber-400" />
             <span className="hidden sm:inline">{lang === 'ar' ? 'مسح جديد' : 'New Scan'}</span>
           </button>
         </div>

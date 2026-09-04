@@ -97,7 +97,7 @@ export function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-[#F9FAFB] text-[#111827] flex flex-col font-cairo ${lang === 'ar' ? 'font-cairo' : 'font-sans'}`}>
+    <div className={`min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-cairo ${lang === 'ar' ? 'font-cairo' : 'font-sans'} relative selection:bg-slate-900 selection:text-amber-200`}>
       
       {/* Top Clean Navbar */}
       <Navbar
@@ -127,22 +127,22 @@ export function App() {
               lang={lang}
             />
           ) : (
-            <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-xs space-y-4 max-w-2xl mx-auto px-6">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mx-auto text-gray-700">
-                <Sparkles className="w-6 h-6" />
+            <div className="text-center py-20 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-4 max-w-2xl mx-auto px-6">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center mx-auto text-amber-400 shadow-md">
+                <Sparkles className="w-7 h-7" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 font-cairo">
+              <h3 className="text-xl font-black text-slate-900 font-cairo">
                 {lang === 'ar' ? 'لا يوجد مستند مفتوح حالياً' : 'No document currently open'}
               </h3>
-              <p className="text-xs text-gray-500 max-w-md mx-auto">
+              <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
                 {lang === 'ar'
-                  ? 'قم بتحويل صورة جديدة أو اختر مستنداً من المكتبة السحابية للبدء في التعديل والتنسيق'
-                  : 'Convert an image or open one from your saved cloud library'}
+                  ? 'قم بتحويل صورة أو ملف PDF جديد، أو اختر مستنداً محفوظاً من المكتبة السحابية للبدء في التعديل والتنسيق الفاخر'
+                  : 'Convert an image or PDF, or open one from your saved cloud library'}
               </p>
               <button
                 type="button"
                 onClick={() => setCurrentTab('convert')}
-                className="px-5 py-2.5 rounded-xl bg-gray-900 text-white font-medium text-xs hover:bg-black transition-colors shadow-xs"
+                className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-98 border border-slate-800"
               >
                 {t.nav.convert}
               </button>
@@ -186,23 +186,23 @@ export function App() {
         />
       )}
 
-      {/* Clean Minimalist Footer */}
-      <footer className="border-t border-gray-200 bg-white/80 py-6 mt-12 text-center text-xs text-gray-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-gray-600">
+      {/* Clean Luxury Footer */}
+      <footer className="border-t border-slate-200/80 bg-white/90 backdrop-blur-sm py-6 mt-12 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs animate-pulse" />
+            <span className="text-slate-700 font-medium">
               {lang === 'ar'
-                ? 'استوديو تحويل الصور والكتب إلى وورد الذكي • مدعوم بأحدث تقنيات الذكاء الاصطناعي السحابي'
-                : 'Smart Image & Book to Word OCR Studio • Cloud Multimodal AI'}
+                ? 'استوديو بصيرة وورد الذكي • الإصدار الاحترافي الفاخر لتحويل الوثائق والمخطوطات والكتب'
+                : 'Basira Smart OCR Studio • Luxury Edition for Documents & Books'}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-gray-400">
-            <span>Microsoft Word (.docx)</span>
+          <div className="flex items-center gap-3 text-slate-400 font-medium text-[11px]">
+            <span className="hover:text-slate-600 transition-colors">Microsoft Word (.docx)</span>
             <span>•</span>
-            <span>PDF Export</span>
+            <span className="hover:text-slate-600 transition-colors">PDF Export</span>
             <span>•</span>
-            <span>Watermark Filter</span>
+            <span className="hover:text-slate-600 transition-colors">AI Watermark Engine</span>
           </div>
         </div>
       </footer>

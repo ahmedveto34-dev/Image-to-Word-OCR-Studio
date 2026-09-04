@@ -322,8 +322,10 @@ app.post('/api/ai/transform', async (req: Request, res: Response) => {
 
     switch (action) {
       case 'proofread':
-        systemInstruction = 'You are an expert Arabic & English copyeditor. Correct spelling, grammar, punctuation, and typographical mistakes while preserving original styling, math, and markdown layout.';
-        prompt = `Please proofread and enhance the following text without changing its meaning. Fix any Arabic or English OCR errors, punctuation, and typos:\n\n${text}`;
+      case 'spellcheck':
+      case 'arabic_spellcheck':
+        systemInstruction = 'You are an elite Arabic & English proofreader, linguist, and copyeditor. Your mission is to fix all spelling errors, Hamzas (أ, إ, آ, ء, ئ, ؤ), Taa Marbuta vs Haa (ة / ه), Tanween, broken OCR words, spacing, punctuation marks (، ؛ . ؟ ! :), and grammatical concord while strictly preserving tables, math equations, markdown headers, and formatting.';
+        prompt = `Please proofread and correct this document. Fix any Arabic spelling, Hamzas, Taa Marbuta, Tanween, grammar, punctuation, and typographical OCR errors. Retain all markdown structure, tables, and math equations:\n\n${text}`;
         break;
       case 'translate':
         systemInstruction = `You are a certified master translator. Translate the text into ${targetLang === 'ar' ? 'fluent, formal Arabic (الفصحى الحديثة)' : 'natural, professional English'}, preserving all formatting, math notation, and markdown structures.`;

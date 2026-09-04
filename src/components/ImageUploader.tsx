@@ -17,6 +17,8 @@ import {
   CheckCircle,
   HelpCircle,
   AlertCircle,
+  FileCode,
+  FileType,
   X
 } from 'lucide-react';
 import { DocumentItem, DocumentPage, Language, OCRResult } from '../types';
@@ -28,6 +30,7 @@ import {
 } from '../utils/sampleData';
 import { ImageEnhancerModal } from './ImageEnhancerModal';
 import { fileOrUrlToBase64 } from '../utils/imageFilters';
+import { renderPdfToImages } from '../utils/pdfParser';
 
 interface ImageUploaderProps {
   onDocumentCreated: (doc: DocumentItem) => void;
@@ -42,6 +45,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<{
@@ -61,27 +65,61 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
+  const [isParsingPdf, setIsParsingPdf] = useState(false);
+  const [pdfStatusText, setPdfStatusText] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeEnhanceIndex, setActiveEnhanceIndex] = useState<number | null>(null);
 
-  // Handle files selection
-  const handleFiles = (files: FileList | null) => {
+  // Handle files selection (both Images and PDFs)
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const newItems: typeof selectedFiles = [];
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      const url = URL.createObjectURL(file);
-      newItems.push({
-        id: Math.random().toString(36).substring(2, 9),
-        file,
-        previewUrl: url,
-        name: file.name,
-        size: file.size,
-      });
-    });
+    const filesArray = Array.from(files);
 
-    setSelectedFiles(prev => [...prev, ...newItems]);
+    for (const file of filesArray) {
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        // Direct PDF rendering
+        setIsParsingPdf(true);
+        setPdfStatusText(lang === 'ar' ? `جارٍ استخراج صفحات ملف PDF: ${file.name}...` : `Extracting pages from PDF: ${file.name}...`);
+        try {
+          const renderedPages = await renderPdfToImages(file, (current, total) => {
+            setPdfStatusText(
+              lang === 'ar' 
+                ? `جارٍ معالجة صفحات الـ PDF: صفحة ${current} من ${total}...` 
+                : `Processing PDF page ${current} of ${total}...`
+            );
+          });
+
+          renderedPages.forEach((p) => {
+            newItems.push({
+              id: Math.random().toString(36).substring(2, 9),
+              previewUrl: p.dataUrl,
+              name: `${file.name.replace(/\.pdf$/i, '')}_صفحة_${p.pageNumber}.jpg`,
+              size: Math.round(p.dataUrl.length * 0.75),
+            });
+          });
+        } catch (pdfErr: any) {
+          console.error('PDF parsing error:', pdfErr);
+          setErrorMessage(lang === 'ar' ? `فشل في تفكيك صفحات ملف PDF: ${pdfErr?.message || ''}` : `Failed to parse PDF: ${pdfErr?.message || ''}`);
+        } finally {
+          setIsParsingPdf(false);
+        }
+      } else if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        newItems.push({
+          id: Math.random().toString(36).substring(2, 9),
+          file,
+          previewUrl: url,
+          name: file.name,
+          size: file.size,
+        });
+      }
+    }
+
+    if (newItems.length > 0) {
+      setSelectedFiles(prev => [...prev, ...newItems]);
+    }
   };
 
   // Load interactive samples
@@ -238,51 +276,51 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     <div className="space-y-6">
       
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-200 p-6 sm:p-8 shadow-xs">
+      <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-sm">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-gray-600" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-bold mb-3 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
             <span>{t.hero.tag}</span>
           </div>
 
-          <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight font-cairo mb-3">
+          <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight font-cairo mb-3">
             {t.hero.title}
           </h2>
 
-          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-normal mb-5">
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal mb-5">
             {t.hero.description}
           </p>
 
           {/* Quick interactive sample chips */}
           <div>
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2 font-cairo">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2 font-cairo">
               {t.upload.sampleBtn} :
             </span>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => handleLoadSample('book')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-xs font-medium text-gray-700 border border-gray-200 hover:border-gray-300 transition-colors shadow-xs group"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs group"
               >
-                <BookOpen className="w-3.5 h-3.5 text-gray-600" />
+                <BookOpen className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-900" />
                 <span>{t.samples.sampleBookTitle}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleLoadSample('math')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-xs font-medium text-gray-700 border border-gray-200 hover:border-gray-300 transition-colors shadow-xs group"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs group"
               >
-                <Calculator className="w-3.5 h-3.5 text-gray-600" />
+                <Calculator className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-900" />
                 <span>{t.samples.sampleMathTitle}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleLoadSample('invoice')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-xs font-medium text-gray-700 border border-gray-200 hover:border-gray-300 transition-colors shadow-xs group"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs group"
               >
-                <TableIcon className="w-3.5 h-3.5 text-gray-600" />
+                <TableIcon className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-900" />
                 <span>{t.samples.sampleInvoiceTitle}</span>
               </button>
             </div>
@@ -302,17 +340,25 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           setIsDragging(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`relative rounded-2xl border-2 border-dashed p-8 sm:p-10 text-center transition-all ${
+        className={`relative rounded-3xl border-2 border-dashed p-8 sm:p-10 text-center transition-all ${
           isDragging
-            ? 'border-gray-900 bg-gray-50/80 scale-[1.005]'
-            : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50/40 shadow-xs'
+            ? 'border-slate-900 bg-amber-50/40 scale-[1.005]'
+            : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50/50 shadow-sm'
         }`}
       >
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/*,application/pdf,.pdf"
+          onChange={(e) => handleFiles(e.target.files)}
+          className="hidden"
+        />
+        <input
+          ref={pdfInputRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          multiple
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
         />
@@ -326,36 +372,55 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         />
 
         <div className="flex flex-col items-center justify-center max-w-lg mx-auto space-y-3">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-700 border border-gray-200 shadow-xs">
-            <UploadCloud className="w-7 h-7" />
+          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-amber-400 border border-slate-700/60 shadow-md">
+            <UploadCloud className="w-8 h-8" />
           </div>
 
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 font-cairo mb-1">
+            <h3 className="text-base sm:text-lg font-black text-slate-900 font-cairo mb-1">
               {isDragging ? t.upload.dropNotice : t.upload.dragTitle}
             </h3>
-            <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
-              {t.upload.dragSub}
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+              {lang === 'ar'
+                ? 'اسحب وأفلت صور المستندات أو ملفات PDF مباشرة (JPG, PNG, WEBP, PDF)'
+                : 'Drag & drop document images or PDF files directly (JPG, PNG, WEBP, PDF)'}
             </p>
           </div>
 
+          {/* PDF Ingestion Progress Banner */}
+          {isParsingPdf && (
+            <div className="w-full p-3 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 flex items-center justify-center gap-2.5 text-xs font-bold animate-pulse shadow-2xs">
+              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <span>{pdfStatusText || (lang === 'ar' ? 'جارٍ تفكيك صفحات ملف PDF...' : 'Parsing PDF pages...')}</span>
+            </div>
+          )}
+
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-medium text-xs sm:text-sm shadow-xs active:scale-98 transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-98 transition-all border border-slate-800"
             >
-              <FileText className="w-4 h-4" />
-              <span>{lang === 'ar' ? 'اختيار صور من الجهاز' : 'Browse Images'}</span>
+              <FileText className="w-4 h-4 text-amber-400" />
+              <span>{lang === 'ar' ? 'اختيار صور / PDF' : 'Browse Images / PDF'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => pdfInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs sm:text-sm border border-red-200 shadow-2xs active:scale-98 transition-all"
+            >
+              <FileType className="w-4 h-4 text-red-600" />
+              <span>{lang === 'ar' ? 'رفع ملف PDF' : 'Upload PDF'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 font-medium text-xs sm:text-sm border border-gray-200 shadow-xs active:scale-98 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border border-slate-200 shadow-2xs active:scale-98 transition-all"
             >
-              <Camera className="w-4 h-4 text-gray-600" />
+              <Camera className="w-4 h-4 text-slate-600" />
               <span>{t.upload.cameraBtn}</span>
             </button>
           </div>
@@ -364,13 +429,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       {/* Selected Images Queue Grid */}
       {selectedFiles.length > 0 && (
-        <div className="space-y-4 bg-white border border-gray-200 p-6 rounded-2xl shadow-xs">
+        <div className="space-y-4 bg-white border border-slate-200/90 p-6 rounded-3xl shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-bold text-gray-900 font-cairo">
+              <h4 className="text-sm font-black text-slate-900 font-cairo">
                 {t.upload.batchSize} ({selectedFiles.length})
               </h4>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 font-mono">
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-mono font-bold">
                 Ready
               </span>
             </div>
@@ -378,7 +443,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             <button
               type="button"
               onClick={() => setSelectedFiles([])}
-              className="flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t.upload.clearAll}</span>
@@ -389,9 +454,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             {selectedFiles.map((item, idx) => (
               <div
                 key={item.id}
-                className="relative group rounded-xl overflow-hidden bg-gray-50 border border-gray-200 hover:border-gray-300 transition-all p-2 flex flex-col shadow-xs"
+                className="relative group rounded-2xl overflow-hidden bg-slate-50 border border-slate-200/90 hover:border-slate-400 transition-all p-2 flex flex-col shadow-2xs hover:shadow-xs"
               >
-                <div className="relative aspect-3/4 w-full rounded-lg overflow-hidden bg-gray-100 mb-2 flex items-center justify-center border border-gray-200/60">
+                <div className="relative aspect-3/4 w-full rounded-xl overflow-hidden bg-slate-100 mb-2 flex items-center justify-center border border-slate-200/60">
                   <img
                     src={item.enhancedUrl || item.previewUrl}
                     alt={item.name}
@@ -399,7 +464,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   />
                   
                   {/* Page Badge */}
-                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-white/90 text-[10px] font-mono text-gray-900 font-bold border border-gray-200 shadow-xs">
+                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-white/95 text-[10px] font-mono text-slate-900 font-bold border border-slate-200 shadow-xs">
                     #{idx + 1}
                   </span>
 
@@ -410,26 +475,26 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   )}
                 </div>
 
-                <p className="text-[11px] font-medium text-gray-700 truncate mb-1.5">
+                <p className="text-[11px] font-bold text-slate-800 truncate mb-1.5">
                   {item.name}
                 </p>
 
                 {/* Card Quick Actions */}
-                <div className="flex items-center justify-between mt-auto pt-1 border-t border-gray-200">
+                <div className="flex items-center justify-between mt-auto pt-1 border-t border-slate-200/80">
                   <button
                     type="button"
                     onClick={() => setActiveEnhanceIndex(idx)}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-gray-900"
+                    className="flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900"
                     title={lang === 'ar' ? 'تنقية العلامات المائية وفلاتر الصورة' : 'Image cleaner & filters'}
                   >
-                    <Sliders className="w-3.5 h-3.5" />
+                    <Sliders className="w-3.5 h-3.5 text-amber-600" />
                     <span>{lang === 'ar' ? 'تنقية' : 'Filter'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
-                    className="text-gray-400 hover:text-rose-600 transition-colors p-1"
+                    className="text-slate-400 hover:text-rose-600 transition-colors p-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -441,11 +506,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       )}
 
       {/* Advanced OCR Options & AI Configuration */}
-      <div className="rounded-2xl bg-white border border-gray-200 p-6 space-y-5 shadow-xs">
-        <div className="flex items-center gap-2 pb-3 border-b border-gray-200">
-          <Zap className="w-4 h-4 text-gray-700" />
-          <h4 className="text-sm font-bold text-gray-900 font-cairo">
-            {lang === 'ar' ? 'إعدادات المعالجة والذكاء الاصطناعي الذكية' : 'Smart OCR & AI Configuration'}
+      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-7 space-y-5 shadow-sm">
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-200/80">
+          <Zap className="w-4 h-4 text-amber-500" />
+          <h4 className="text-sm font-black text-slate-900 font-cairo">
+            {lang === 'ar' ? 'إعدادات المعالجة والذكاء الاصطناعي الفاخرة' : 'Smart OCR & AI Configuration'}
           </h4>
         </div>
 
@@ -454,45 +519,45 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           {/* Watermark Removal Toggle */}
           <div 
             onClick={() => setRemoveWatermarks(!removeWatermarks)}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
               removeWatermarks
-                ? 'bg-gray-50 border-gray-900 text-gray-900 shadow-xs'
-                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                ? 'bg-amber-50/50 border-amber-400/90 text-slate-900 shadow-xs'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <Droplets className="w-4 h-4 text-gray-700" />
+              <Droplets className="w-4 h-4 text-amber-600" />
               <input
                 type="checkbox"
                 checked={removeWatermarks}
                 onChange={() => {}}
-                className="w-4 h-4 accent-gray-900"
+                className="w-4 h-4 accent-slate-900"
               />
             </div>
-            <p className="text-xs font-bold font-cairo mb-1 text-gray-900">{t.options.watermarkRemoval}</p>
-            <p className="text-[11px] text-gray-500 leading-relaxed">{t.options.watermarkSub}</p>
+            <p className="text-xs font-bold font-cairo mb-1 text-slate-900">{t.options.watermarkRemoval}</p>
+            <p className="text-[11px] text-slate-500 leading-relaxed">{t.options.watermarkSub}</p>
           </div>
 
           {/* Math Equations Recognition */}
           <div 
             onClick={() => setDetectMath(!detectMath)}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
               detectMath
-                ? 'bg-gray-50 border-gray-900 text-gray-900 shadow-xs'
-                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                ? 'bg-amber-50/50 border-amber-400/90 text-slate-900 shadow-xs'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <Calculator className="w-4 h-4 text-gray-700" />
+              <Calculator className="w-4 h-4 text-amber-600" />
               <input
                 type="checkbox"
                 checked={detectMath}
                 onChange={() => {}}
-                className="w-4 h-4 accent-gray-900"
+                className="w-4 h-4 accent-slate-900"
               />
             </div>
-            <p className="text-xs font-bold font-cairo mb-1 text-gray-900">{t.options.detectMath}</p>
-            <p className="text-[11px] text-gray-500 leading-relaxed">
+            <p className="text-xs font-bold font-cairo mb-1 text-slate-900">{t.options.detectMath}</p>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
               {lang === 'ar' ? 'التعرف على الكسور والجذور والمعادلات الحسابية' : 'Recognize fractions, roots, and arithmetic'}
             </p>
           </div>
@@ -500,41 +565,41 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           {/* Tables Extraction */}
           <div 
             onClick={() => setDetectTables(!detectTables)}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
               detectTables
-                ? 'bg-gray-50 border-gray-900 text-gray-900 shadow-xs'
-                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                ? 'bg-amber-50/50 border-amber-400/90 text-slate-900 shadow-xs'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <TableIcon className="w-4 h-4 text-gray-700" />
+              <TableIcon className="w-4 h-4 text-amber-600" />
               <input
                 type="checkbox"
                 checked={detectTables}
                 onChange={() => {}}
-                className="w-4 h-4 accent-gray-900"
+                className="w-4 h-4 accent-slate-900"
               />
             </div>
-            <p className="text-xs font-bold font-cairo mb-1 text-gray-900">{t.options.detectTables}</p>
-            <p className="text-[11px] text-gray-500 leading-relaxed">
+            <p className="text-xs font-bold font-cairo mb-1 text-slate-900">{t.options.detectTables}</p>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
               {lang === 'ar' ? 'استخراج الجداول المعقدة وتنسيقها كأعمدة Word' : 'Convert complex grids to formatted tables'}
             </p>
           </div>
 
           {/* Language Preference */}
-          <div className="p-3.5 rounded-xl bg-white border border-gray-200 flex flex-col justify-between">
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-1.5">
-              <Globe className="w-4 h-4 text-gray-700" />
-              <span className="text-[10px] font-mono text-gray-400">OCR Engine</span>
+              <Globe className="w-4 h-4 text-slate-700" />
+              <span className="text-[10px] font-mono font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">OCR Engine</span>
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-800 block mb-1.5 font-cairo">
+              <label className="text-xs font-bold text-slate-800 block mb-1.5 font-cairo">
                 {t.options.languageDetect}
               </label>
               <select
                 value={languageMode}
                 onChange={e => setLanguageMode(e.target.value as any)}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-900 outline-hidden focus:border-gray-900"
+                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium outline-hidden focus:border-slate-900"
               >
                 <option value="auto">{t.options.langAuto}</option>
                 <option value="ar">{t.options.langAr}</option>
@@ -547,7 +612,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
         {/* Optional Custom Instructions Input */}
         <div>
-          <label className="text-xs font-medium text-gray-700 block mb-1.5 font-cairo">
+          <label className="text-xs font-bold text-slate-700 block mb-1.5 font-cairo">
             {lang === 'ar' ? 'تعليمات إضافية اختيارية للذكاء الاصطناعي (مثل: ركز على أسئلة الامتحان، أو استخرج الفاتورة بدون ملاحظات الهامش)' : 'Optional custom prompt instructions for extraction'}
           </label>
           <input
@@ -555,13 +620,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             value={customInstructions}
             onChange={e => setCustomInstructions(e.target.value)}
             placeholder={lang === 'ar' ? 'مثال: قم بتمييز عناوين الفصول بخط عريض، وحول الأرقام العربية إلى إنجليزية...' : 'e.g., Bold all section titles and format math equations clearly...'}
-            className="w-full px-3.5 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-900 placeholder:text-gray-400 focus:bg-white focus:border-gray-900 outline-hidden"
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-900 outline-hidden transition-colors"
           />
         </div>
 
         {/* Error Notification Banner */}
         {errorMessage && (
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-800">
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-800">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div>
@@ -579,7 +644,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               <button
                 type="button"
                 onClick={handleStartOCR}
-                className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold font-cairo shadow-xs transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold font-cairo shadow-xs transition-colors flex items-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{lang === 'ar' ? 'إعادة المحاولة الآن' : 'Retry Now'}</span>
@@ -598,7 +663,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
         {/* Start OCR CTA Button */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span>
               {lang === 'ar'
@@ -611,16 +676,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             type="button"
             disabled={selectedFiles.length === 0 || isProcessing}
             onClick={handleStartOCR}
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-7 py-3 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-sm shadow-xs active:scale-98 transition-all disabled:opacity-40 disabled:pointer-events-none"
+            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-extrabold text-sm shadow-md hover:shadow-lg active:scale-98 transition-all disabled:opacity-40 disabled:pointer-events-none border border-slate-800"
           >
             {isProcessing ? (
               <>
-                <Sparkles className="w-4 h-4 animate-spin" />
+                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
                 <span>{lang === 'ar' ? `جارٍ الاستخراج الذكي (${processProgress}%)...` : `Processing OCR (${processProgress}%)...`}</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 text-amber-400" />
                 <span>{t.upload.startBatch} ({selectedFiles.length})</span>
                 <ArrowRight className="w-4 h-4" />
               </>

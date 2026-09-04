@@ -20,6 +20,7 @@ import { translations } from '../utils/i18n';
 import { getSampleArabicBook } from '../utils/sampleData';
 import { ExportModal } from './ExportModal';
 import { fileOrUrlToBase64 } from '../utils/imageFilters';
+import { renderPdfToImages } from '../utils/pdfParser';
 
 interface BookBatchConverterProps {
   onBookCreated: (doc: DocumentItem) => void;
@@ -46,23 +47,63 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
   }[]>([]);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isParsingPdf, setIsParsingPdf] = useState(false);
+  const [pdfProgressText, setPdfProgressText] = useState('');
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [completedDoc, setCompletedDoc] = useState<DocumentItem | null>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
-  const handleAddFiles = (files: FileList | null) => {
+  const handleAddFiles = async (files: FileList | null) => {
     if (!files) return;
-    const items = Array.from(files)
-      .filter(f => f.type.startsWith('image/'))
-      .map((file, idx) => ({
-        id: Math.random().toString(36).substring(2, 9),
-        file,
-        previewUrl: URL.createObjectURL(file),
-        name: file.name,
-        chapterName: `${lang === 'ar' ? 'الفصل / الصفحة' : 'Page'} ${bookPages.length + idx + 1}`,
-      }));
-    setBookPages(prev => [...prev, ...items]);
+    const filesArray = Array.from(files);
+    const newItems: typeof bookPages = [];
+
+    for (const file of filesArray) {
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setIsParsingPdf(true);
+        setPdfProgressText(lang === 'ar' ? `جارٍ فك صفحات كتاب PDF: ${file.name}...` : `Extracting PDF book pages: ${file.name}...`);
+        try {
+          const renderedPages = await renderPdfToImages(file, (current, total) => {
+            setPdfProgressText(
+              lang === 'ar' 
+                ? `معالجة صفحات الكتاب: ${current} من ${total}...` 
+                : `Processing book pages: ${current} of ${total}...`
+            );
+          });
+
+          // Auto-set title from book file name
+          if (!authorName) {
+            setBookTitle(file.name.replace(/\.pdf$/i, '').replace(/_/g, ' '));
+          }
+
+          renderedPages.forEach((p) => {
+            newItems.push({
+              id: Math.random().toString(36).substring(2, 9),
+              previewUrl: p.dataUrl,
+              name: `${file.name.replace(/\.pdf$/i, '')}_p${p.pageNumber}.jpg`,
+              chapterName: `${lang === 'ar' ? 'الصفحة' : 'Page'} ${bookPages.length + newItems.length + 1}`,
+            });
+          });
+        } catch (pdfErr: any) {
+          setErrorMessage(lang === 'ar' ? `فشل في قراءة ملف PDF: ${pdfErr?.message || ''}` : `PDF error: ${pdfErr?.message || ''}`);
+        } finally {
+          setIsParsingPdf(false);
+        }
+      } else if (file.type.startsWith('image/')) {
+        newItems.push({
+          id: Math.random().toString(36).substring(2, 9),
+          file,
+          previewUrl: URL.createObjectURL(file),
+          name: file.name,
+          chapterName: `${lang === 'ar' ? 'الفصل / الصفحة' : 'Page'} ${bookPages.length + newItems.length + 1}`,
+        });
+      }
+    }
+
+    if (newItems.length > 0) {
+      setBookPages(prev => [...prev, ...newItems]);
+    }
   };
 
   const handleAddSamplePages = () => {
@@ -270,7 +311,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               onChange={e => handleAddFiles(e.target.files)}
               className="hidden"
             />
@@ -278,9 +319,9 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
             <button
               type="button"
               onClick={handleAddSamplePages}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 border border-gray-200 shadow-xs transition-colors"
+              className="px-3 py-2 rounded-xl bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 border border-gray-200 shadow-xs transition-colors"
             >
-              {lang === 'ar' ? 'تجربة 3 صفحات كتاب' : 'Add 3 Sample Pages'}
+              {lang === 'ar' ? 'تجربة 3 صفحات' : 'Add 3 Samples'}
             </button>
 
             <button
@@ -289,10 +330,18 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>{t.books.addPages}</span>
+              <span>{lang === 'ar' ? 'إضافة صور / كتاب PDF' : 'Add Images / PDF Book'}</span>
             </button>
           </div>
         </div>
+
+        {/* PDF Book Parsing Banner */}
+        {isParsingPdf && (
+          <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 flex items-center justify-center gap-2.5 text-xs font-bold animate-pulse">
+            <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <span>{pdfProgressText || (lang === 'ar' ? 'جارٍ تفكيك صفحات كتاب PDF...' : 'Parsing PDF book...')}</span>
+          </div>
+        )}
 
         {/* Empty State */}
         {bookPages.length === 0 ? (

@@ -38,7 +38,10 @@ import {
   ChevronRight,
   Sliders,
   FileSpreadsheet,
-  CheckCheck
+  CheckCheck,
+  Crop,
+  SpellCheck,
+  Volume2
 } from 'lucide-react';
 import { DocumentItem, DocumentPage, Language } from '../types';
 import { translations } from '../utils/i18n';
@@ -48,6 +51,9 @@ import { MathEvaluatorModal } from './MathEvaluatorModal';
 import { exportToPdf } from '../utils/pdfExport';
 import { ImageEnhancerModal } from './ImageEnhancerModal';
 import { TableExtractorModal } from './TableExtractorModal';
+import { ImageCropModal } from './ImageCropModal';
+import { SpellCheckerModal } from './SpellCheckerModal';
+import { AudioProofReader } from './AudioProofReader';
 import { copyFullDocumentToClipboard, extractTablesFromMarkdown } from '../utils/tableExtractor';
 
 interface DocumentEditorProps {
@@ -80,6 +86,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
   const [isEnhancerModalOpen, setIsEnhancerModalOpen] = useState(false);
   const [isTablesModalOpen, setIsTablesModalOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isSpellModalOpen, setIsSpellModalOpen] = useState(false);
+  const [showAudioProof, setShowAudioProof] = useState(false);
   const [copiedFull, setCopiedFull] = useState(false);
 
   // Zoom & Pan state for original image
@@ -287,6 +296,32 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             <span>{lang === 'ar' ? 'استخراج الجداول' : 'Tables'}</span>
           </button>
 
+          {/* Spell & Grammar Audit Button */}
+          <button
+            type="button"
+            onClick={() => setIsSpellModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold border border-indigo-200 shadow-xs transition-colors"
+            title={lang === 'ar' ? 'تدقيق إملائي ونحوي ذكي' : 'Smart Spell & Grammar Audit'}
+          >
+            <SpellCheck className="w-4 h-4 text-indigo-600" />
+            <span>{lang === 'ar' ? 'التدقيق اللغوي' : 'Spellcheck'}</span>
+          </button>
+
+          {/* Audio Proofreading Player Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAudioProof(!showAudioProof)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors shadow-xs ${
+              showAudioProof
+                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
+            }`}
+            title={lang === 'ar' ? 'قراءة صوتية للتدقيق والتحقق' : 'Audio Proofreader'}
+          >
+            <Volume2 className="w-4 h-4 text-amber-600" />
+            <span className="hidden sm:inline">{lang === 'ar' ? 'مراجعة صوتية' : 'Audio Proof'}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsMathModalOpen(true)}
@@ -452,8 +487,17 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setIsCropModalOpen(true)}
+                  className="flex items-center gap-1 ml-1 px-2 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold hover:bg-amber-100 transition-colors"
+                  title={lang === 'ar' ? 'تحديد واقتصاص جزء معين من الصورة لاستخراج النص منه' : 'Crop and OCR a specific area'}
+                >
+                  <Crop className="w-3 h-3 text-amber-600" />
+                  <span>{lang === 'ar' ? 'قص واقتصاص OCR' : 'Crop Area'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsEnhancerModalOpen(true)}
-                  className="flex items-center gap-1 ml-2 px-2 py-1 rounded-md bg-gray-100 text-gray-700 border border-gray-200 text-[11px] font-medium hover:bg-gray-200"
+                  className="flex items-center gap-1 ml-1 px-2 py-1 rounded-md bg-gray-100 text-gray-700 border border-gray-200 text-[11px] font-medium hover:bg-gray-200 transition-colors"
                 >
                   <Sliders className="w-3 h-3" />
                   <span>{t.editor.filterWatermarkPreview}</span>
@@ -658,6 +702,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               </div>
             )}
 
+            {/* Audio Proofreading Bar */}
+            {showAudioProof && (
+              <div className="p-3 bg-amber-50/70 border-b border-amber-200/80">
+                <AudioProofReader
+                  text={activePage ? activePage.extractedMarkdown : doc.combinedMarkdown}
+                  lang={lang}
+                />
+              </div>
+            )}
+
             {/* Editable Text Area */}
             <div className="relative flex-1 min-h-[500px] flex flex-col bg-white">
               {isAiLoading && (
@@ -739,6 +793,37 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             const updated = { ...doc, pages: copyPages };
             setDoc(updated);
             onUpdateDocument(updated);
+          }}
+        />
+      )}
+
+      {/* Crop & Targeted OCR Modal */}
+      {isCropModalOpen && activePage && (
+        <ImageCropModal
+          isOpen={isCropModalOpen}
+          onClose={() => setIsCropModalOpen(false)}
+          imageSrc={activePage.enhancedImage || activePage.originalImage}
+          lang={lang}
+          onCroppedOCR={(extractedText, mode) => {
+            const currentText = activePage?.extractedMarkdown || doc.combinedMarkdown;
+            if (mode === 'replace') {
+              handleContentChange(extractedText);
+            } else {
+              handleContentChange(currentText + '\n\n' + extractedText);
+            }
+          }}
+        />
+      )}
+
+      {/* Smart Arabic Spellchecker Modal */}
+      {isSpellModalOpen && (
+        <SpellCheckerModal
+          isOpen={isSpellModalOpen}
+          onClose={() => setIsSpellModalOpen(false)}
+          text={activePage ? activePage.extractedMarkdown : doc.combinedMarkdown}
+          lang={lang}
+          onApplyCorrectedText={(corrected) => {
+            handleContentChange(corrected);
           }}
         />
       )}

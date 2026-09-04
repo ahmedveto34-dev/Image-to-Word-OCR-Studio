@@ -119,6 +119,105 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Modal Form */}
         <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
           
+          {/* Quick Document Style Presets */}
+          <div>
+            <label className="text-xs font-bold text-gray-800 block mb-2 font-cairo flex items-center justify-between">
+              <span>{lang === 'ar' ? 'اختر قالب التنسيق الجاهز لمستند Word:' : 'Word Document Style Preset:'}</span>
+              <span className="text-[11px] font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                {lang === 'ar' ? 'تنسيق متكامل بنقرة واحدة' : '1-Click Presets'}
+              </span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {[
+                {
+                  id: 'academic',
+                  name: lang === 'ar' ? 'بحث أكاديمي' : 'Academic',
+                  desc: 'Amiri / Times',
+                  apply: () => setOptions(prev => ({
+                    ...prev,
+                    fontFamily: lang === 'ar' ? 'Amiri' : 'Times New Roman',
+                    fontSize: 12,
+                    themeColor: 'navy',
+                    lineSpacing: 1.5,
+                    includePageNumbers: true,
+                    includeHeaderFooter: true,
+                    highlightMath: true,
+                  })),
+                },
+                {
+                  id: 'financial',
+                  name: lang === 'ar' ? 'تقرير مالي وفاتورة' : 'Financial',
+                  desc: 'Cairo / Emerald',
+                  apply: () => setOptions(prev => ({
+                    ...prev,
+                    fontFamily: 'Cairo',
+                    fontSize: 11,
+                    themeColor: 'emerald',
+                    lineSpacing: 1.15,
+                    includePageNumbers: true,
+                    includeHeaderFooter: true,
+                    highlightMath: true,
+                  })),
+                },
+                {
+                  id: 'summary',
+                  name: lang === 'ar' ? 'مذكرة وملخص' : 'Study Notes',
+                  desc: 'Cairo / Amber',
+                  apply: () => setOptions(prev => ({
+                    ...prev,
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    themeColor: 'gold',
+                    lineSpacing: 1.5,
+                    includePageNumbers: true,
+                    includeHeaderFooter: true,
+                    highlightMath: true,
+                  })),
+                },
+                {
+                  id: 'legal',
+                  name: lang === 'ar' ? 'عقد ووثيقة رسمية' : 'Legal & Formal',
+                  desc: 'Amiri / Slate',
+                  apply: () => setOptions(prev => ({
+                    ...prev,
+                    fontFamily: lang === 'ar' ? 'Amiri' : 'Arial',
+                    fontSize: 12,
+                    themeColor: 'slate',
+                    lineSpacing: 1.5,
+                    includePageNumbers: true,
+                    includeHeaderFooter: true,
+                    highlightMath: false,
+                  })),
+                },
+                {
+                  id: 'modern',
+                  name: lang === 'ar' ? 'عصري حديث' : 'Modern Clean',
+                  desc: 'Cairo / Crimson',
+                  apply: () => setOptions(prev => ({
+                    ...prev,
+                    fontFamily: 'Cairo',
+                    fontSize: 12,
+                    themeColor: 'crimson',
+                    lineSpacing: 1.5,
+                    includePageNumbers: true,
+                    includeHeaderFooter: true,
+                    highlightMath: true,
+                  })),
+                },
+              ].map(preset => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={preset.apply}
+                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-900 transition-all text-center shadow-2xs group"
+                >
+                  <span className="text-xs font-bold text-gray-900 group-hover:text-black">{preset.name}</span>
+                  <span className="text-[10px] text-gray-500 mt-0.5">{preset.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          
           {/* Document Title & Author */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
