@@ -7,7 +7,8 @@ import {
   Globe, 
   CloudCheck, 
   Calculator,
-  Plus
+  Plus,
+  Lock
 } from 'lucide-react';
 import { Language, AppTab } from '../types';
 import { translations } from '../utils/i18n';
@@ -23,6 +24,7 @@ interface NavbarProps {
   isSynced?: boolean;
   activeDocTitle?: string;
   onNewScan?: () => void;
+  onLockApp?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSynced = true,
   activeDocTitle,
   onNewScan,
+  onLockApp,
 }) => {
   const t = translations[lang];
 
@@ -71,8 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 font-cairo bg-gradient-to-r from-slate-950 via-slate-800 to-slate-900 bg-clip-text">
-                {lang === 'ar' ? 'بصيرة وورد' : 'Basira OCR Studio'}
+              <h1 className="text-base sm:text-lg font-black tracking-wider text-slate-900 font-cairo bg-gradient-to-r from-slate-950 via-slate-800 to-slate-900 bg-clip-text uppercase">
+                TAHWEEL
               </h1>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs">
                 PRO OCR
@@ -159,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Cloud Sync Pill */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600 shadow-2xs">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 shadow-2xs">
             <CloudCheck className="w-4 h-4 text-emerald-600" />
             <span>{t.sync.synced}</span>
           </div>
@@ -168,20 +171,33 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-lang-toggle"
             onClick={toggleLanguage}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-xs font-bold text-sky-800 transition-all shadow-2xs active:scale-95"
             title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
           >
-            <Globe className="w-3.5 h-3.5 text-slate-500" />
+            <Globe className="w-3.5 h-3.5 text-sky-600" />
             <span>{t.nav.language}</span>
           </button>
+
+          {/* Lock App Button */}
+          {onLockApp && (
+            <button
+              id="btn-lock-app"
+              onClick={onLockApp}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 transition-all shadow-2xs active:scale-95"
+              title={lang === 'ar' ? 'قفل التطبيق برقم سري' : 'Lock App with Passcode'}
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden lg:inline">{lang === 'ar' ? 'قفل' : 'Lock'}</span>
+            </button>
+          )}
 
           {/* Quick Scan Action Button */}
           <button
             id="btn-new-scan"
             onClick={handleScanClick}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all active:scale-98 border border-slate-800"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all active:scale-95 border border-amber-600/50"
           >
-            <Plus className="w-4 h-4 text-amber-400" />
+            <Plus className="w-4 h-4 text-white" />
             <span className="hidden sm:inline">{lang === 'ar' ? 'مسح جديد' : 'New Scan'}</span>
           </button>
         </div>

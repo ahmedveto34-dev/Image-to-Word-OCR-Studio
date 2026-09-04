@@ -299,28 +299,28 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
 
               {/* Presets */}
               <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-gray-500">
+                <span className="text-[11px] font-bold text-gray-700">
                   {isAr ? 'مقاسات سريعة:' : 'Quick Select:'}
                 </span>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => setCropBox({ x: 5, y: 5, width: 90, height: 25 })}
-                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-[11px] font-medium rounded-lg text-gray-700"
+                    className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-[11px] font-bold rounded-lg text-sky-800 transition-colors"
                   >
                     {isAr ? 'الترويسة' : 'Header'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCropBox({ x: 5, y: 25, width: 90, height: 50 })}
-                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-[11px] font-medium rounded-lg text-gray-700"
+                    className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-[11px] font-bold rounded-lg text-purple-800 transition-colors"
                   >
                     {isAr ? 'المتن والوسط' : 'Body'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCropBox({ x: 5, y: 70, width: 90, height: 25 })}
-                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-[11px] font-medium rounded-lg text-gray-700"
+                    className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-[11px] font-bold rounded-lg text-teal-800 transition-colors"
                   >
                     {isAr ? 'التذييل' : 'Footer'}
                   </button>
@@ -334,7 +334,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
                 type="button"
                 onClick={handleExecuteCropOCR}
                 disabled={isProcessing || !croppedPreview}
-                className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
               >
                 {isProcessing ? (
                   <>

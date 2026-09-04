@@ -29,6 +29,7 @@ import {
   getSampleBilingualInvoice 
 } from '../utils/sampleData';
 import { ImageEnhancerModal } from './ImageEnhancerModal';
+import { CameraScannerModal } from './CameraScannerModal';
 import { fileOrUrlToBase64 } from '../utils/imageFilters';
 import { renderPdfToImages } from '../utils/pdfParser';
 
@@ -69,6 +70,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [pdfStatusText, setPdfStatusText] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeEnhanceIndex, setActiveEnhanceIndex] = useState<number | null>(null);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   // Handle files selection (both Images and PDFs)
   const handleFiles = async (files: FileList | null) => {
@@ -296,31 +298,31 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2 font-cairo">
               {t.upload.sampleBtn} :
             </span>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               <button
                 type="button"
                 onClick={() => handleLoadSample('book')}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs group"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-800 border border-emerald-300 transition-all shadow-2xs group active:scale-95"
               >
-                <BookOpen className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-900" />
+                <BookOpen className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
                 <span>{t.samples.sampleBookTitle}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleLoadSample('math')}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs group"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-xs font-bold text-purple-800 border border-purple-300 transition-all shadow-2xs group active:scale-95"
               >
-                <Calculator className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-900" />
+                <Calculator className="w-3.5 h-3.5 text-purple-600 group-hover:scale-110 transition-transform" />
                 <span>{t.samples.sampleMathTitle}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleLoadSample('invoice')}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs group"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-xs font-bold text-sky-800 border border-sky-300 transition-all shadow-2xs group active:scale-95"
               >
-                <TableIcon className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-900" />
+                <TableIcon className="w-3.5 h-3.5 text-sky-600 group-hover:scale-110 transition-transform" />
                 <span>{t.samples.sampleInvoiceTitle}</span>
               </button>
             </div>
@@ -342,7 +344,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         }}
         className={`relative rounded-3xl border-2 border-dashed p-8 sm:p-10 text-center transition-all ${
           isDragging
-            ? 'border-slate-900 bg-amber-50/40 scale-[1.005]'
+            ? 'border-indigo-600 bg-indigo-50/50 scale-[1.005]'
             : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50/50 shadow-sm'
         }`}
       >
@@ -372,7 +374,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         />
 
         <div className="flex flex-col items-center justify-center max-w-lg mx-auto space-y-3">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-amber-400 border border-slate-700/60 shadow-md">
+          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 via-blue-600 to-violet-700 text-white shadow-lg shadow-indigo-500/25">
             <UploadCloud className="w-8 h-8" />
           </div>
 
@@ -400,27 +402,27 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-98 transition-all border border-slate-800"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 active:scale-95 transition-all"
             >
-              <FileText className="w-4 h-4 text-amber-400" />
+              <FileText className="w-4 h-4" />
               <span>{lang === 'ar' ? 'اختيار صور / PDF' : 'Browse Images / PDF'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => pdfInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs sm:text-sm border border-red-200 shadow-2xs active:scale-98 transition-all"
+              className="flex items-center gap-2 px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-rose-500/20 active:scale-95 transition-all"
             >
-              <FileType className="w-4 h-4 text-red-600" />
+              <FileType className="w-4 h-4 text-white" />
               <span>{lang === 'ar' ? 'رفع ملف PDF' : 'Upload PDF'}</span>
             </button>
 
             <button
               type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border border-slate-200 shadow-2xs active:scale-98 transition-all"
+              onClick={() => setIsCameraModalOpen(true)}
+              className="flex items-center gap-2 px-4.5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-teal-500/20 active:scale-95 transition-all"
             >
-              <Camera className="w-4 h-4 text-slate-600" />
+              <Camera className="w-4 h-4 text-white" />
               <span>{t.upload.cameraBtn}</span>
             </button>
           </div>
@@ -443,7 +445,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             <button
               type="button"
               onClick={() => setSelectedFiles([])}
-              className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 border border-rose-200 transition-colors shadow-2xs"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t.upload.clearAll}</span>
@@ -480,21 +482,21 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                 </p>
 
                 {/* Card Quick Actions */}
-                <div className="flex items-center justify-between mt-auto pt-1 border-t border-slate-200/80">
+                <div className="flex items-center justify-between mt-auto pt-1.5 border-t border-slate-200/80 gap-1">
                   <button
                     type="button"
                     onClick={() => setActiveEnhanceIndex(idx)}
-                    className="flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900"
+                    className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-[11px] font-bold text-amber-800 border border-amber-200/80 transition-colors"
                     title={lang === 'ar' ? 'تنقية العلامات المائية وفلاتر الصورة' : 'Image cleaner & filters'}
                   >
-                    <Sliders className="w-3.5 h-3.5 text-amber-600" />
+                    <Sliders className="w-3 h-3 text-amber-600" />
                     <span>{lang === 'ar' ? 'تنقية' : 'Filter'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
-                    className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                    className="p-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -676,16 +678,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             type="button"
             disabled={selectedFiles.length === 0 || isProcessing}
             onClick={handleStartOCR}
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-extrabold text-sm shadow-md hover:shadow-lg active:scale-98 transition-all disabled:opacity-40 disabled:pointer-events-none border border-slate-800"
+            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700 text-white font-black text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none border border-indigo-400/30"
           >
             {isProcessing ? (
               <>
-                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+                <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
                 <span>{lang === 'ar' ? `جارٍ الاستخراج الذكي (${processProgress}%)...` : `Processing OCR (${processProgress}%)...`}</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-amber-400" />
+                <Sparkles className="w-4 h-4 text-amber-300" />
                 <span>{t.upload.startBatch} ({selectedFiles.length})</span>
                 <ArrowRight className="w-4 h-4" />
               </>
@@ -710,6 +712,18 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           }}
         />
       )}
+
+      {/* Live Camera Scanner Modal */}
+      <CameraScannerModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        lang={lang}
+        onCaptureComplete={(capturedFiles) => {
+          const dt = new DataTransfer();
+          capturedFiles.forEach(f => dt.items.add(f));
+          handleFiles(dt.files);
+        }}
+      />
 
     </div>
   );

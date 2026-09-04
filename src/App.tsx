@@ -18,6 +18,9 @@ import {
   MathEvaluatorModal 
 } from './components/MathEvaluatorModal';
 import { 
+  PasscodeLockScreen 
+} from './components/PasscodeLockScreen';
+import { 
   AppTab, 
   DocumentItem, 
   Language 
@@ -32,6 +35,13 @@ import { translations } from './utils/i18n';
 import { Sparkles, Calculator } from 'lucide-react';
 
 export function App() {
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('tahweel_unlocked') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
   const [lang, setLang] = useState<Language>('ar');
   const [currentTab, setCurrentTab] = useState<AppTab>('convert');
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -39,6 +49,22 @@ export function App() {
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
 
   const t = translations[lang];
+
+  // Handle locking app
+  const handleLockApp = () => {
+    try {
+      sessionStorage.removeItem('tahweel_unlocked');
+    } catch (e) {}
+    setIsUnlocked(false);
+  };
+
+  // Handle unlocking app
+  const handleUnlockApp = () => {
+    try {
+      sessionStorage.setItem('tahweel_unlocked', 'true');
+    } catch (e) {}
+    setIsUnlocked(true);
+  };
 
   // Load cloud/local saved docs on launch
   useEffect(() => {
@@ -96,6 +122,16 @@ export function App() {
     setCurrentTab(tab);
   };
 
+  // If locked, render luxury Passcode screen
+  if (!isUnlocked) {
+    return (
+      <PasscodeLockScreen
+        onUnlock={handleUnlockApp}
+        lang={lang}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-cairo ${lang === 'ar' ? 'font-cairo' : 'font-sans'} relative selection:bg-slate-900 selection:text-amber-200`}>
       
@@ -108,6 +144,7 @@ export function App() {
         savedCount={documents.length}
         activeDocTitle={activeDocument?.title}
         onNewScan={() => handleTabChange('convert')}
+        onLockApp={handleLockApp}
       />
 
       {/* Main Container View */}
@@ -193,8 +230,8 @@ export function App() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs animate-pulse" />
             <span className="text-slate-700 font-medium">
               {lang === 'ar'
-                ? 'استوديو بصيرة وورد الذكي • الإصدار الاحترافي الفاخر لتحويل الوثائق والمخطوطات والكتب'
-                : 'Basira Smart OCR Studio • Luxury Edition for Documents & Books'}
+                ? 'منصة TAHWEEL الذكية • الإصدار الاحترافي لتحويل الوثائق والمخطوطات والكتب إلى Word و PowerPoint'
+                : 'TAHWEEL Smart OCR Studio • Pro Edition for Documents, Books & Slides'}
             </span>
           </div>
           <div className="flex items-center gap-3 text-slate-400 font-medium text-[11px]">

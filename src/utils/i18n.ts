@@ -2,7 +2,7 @@ import { Language } from '../types';
 
 export const translations = {
   ar: {
-    appTitle: 'محول الصور إلى وورد الذكي',
+    appTitle: 'TAHWEEL',
     appSubtitle: 'استخراج فائق الدقة، إزالة العلامات المائية، ودعم كامل للغة العربية والمعادلات الرياضية',
     nav: {
       convert: 'تحويل جديد',
@@ -138,7 +138,7 @@ export const translations = {
     },
   },
   en: {
-    appTitle: 'Smart Image to Word OCR Studio',
+    appTitle: 'TAHWEEL',
     appSubtitle: 'Ultra-accurate extraction, watermark removal, full Arabic/English & math support',
     nav: {
       convert: 'New OCR',

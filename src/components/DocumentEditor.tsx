@@ -41,7 +41,10 @@ import {
   CheckCheck,
   Crop,
   SpellCheck,
-  Volume2
+  Volume2,
+  Presentation,
+  ArrowUpDown,
+  RefreshCw
 } from 'lucide-react';
 import { DocumentItem, DocumentPage, Language } from '../types';
 import { translations } from '../utils/i18n';
@@ -95,10 +98,48 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [imageZoom, setImageZoom] = useState(1);
   const [imageRotation, setImageRotation] = useState(0);
 
+  // Synchronized Scroll state & refs
+  const [isSyncScroll, setIsSyncScroll] = useState(true);
+  const imageScrollRef = useRef<HTMLDivElement>(null);
+  const isScrollingSource = useRef<'image' | 'text' | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   const activePage: DocumentPage | undefined = doc.pages[activePageIndex] || doc.pages[0];
+
+  // Synchronized Scroll handlers
+  const handleImageScroll = () => {
+    if (!isSyncScroll || isScrollingSource.current === 'text' || !imageScrollRef.current || !textareaRef.current) return;
+    isScrollingSource.current = 'image';
+    const imgEl = imageScrollRef.current;
+    const textEl = textareaRef.current;
+    const maxImgScroll = imgEl.scrollHeight - imgEl.clientHeight;
+    const maxTextScroll = textEl.scrollHeight - textEl.clientHeight;
+    if (maxImgScroll > 0 && maxTextScroll > 0) {
+      const ratio = imgEl.scrollTop / maxImgScroll;
+      textEl.scrollTop = ratio * maxTextScroll;
+    }
+    setTimeout(() => {
+      if (isScrollingSource.current === 'image') isScrollingSource.current = null;
+    }, 50);
+  };
+
+  const handleTextScroll = () => {
+    if (!isSyncScroll || isScrollingSource.current === 'image' || !imageScrollRef.current || !textareaRef.current) return;
+    isScrollingSource.current = 'text';
+    const imgEl = imageScrollRef.current;
+    const textEl = textareaRef.current;
+    const maxImgScroll = imgEl.scrollHeight - imgEl.clientHeight;
+    const maxTextScroll = textEl.scrollHeight - textEl.clientHeight;
+    if (maxImgScroll > 0 && maxTextScroll > 0) {
+      const ratio = textEl.scrollTop / maxTextScroll;
+      imgEl.scrollTop = ratio * maxImgScroll;
+    }
+    setTimeout(() => {
+      if (isScrollingSource.current === 'text') isScrollingSource.current = null;
+    }, 50);
+  };
 
   useEffect(() => {
     setDoc(initialDoc);
@@ -278,7 +319,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-200 shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300 shadow-2xs transition-all active:scale-95"
             title={t.editor.saveCloud}
           >
             <Save className="w-4 h-4 text-emerald-600" />
@@ -289,10 +330,10 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <button
             type="button"
             onClick={() => setIsTablesModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold border border-teal-300 shadow-2xs transition-all active:scale-95"
             title={t.editor.tablesManager}
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-4 h-4 text-teal-600" />
             <span>{lang === 'ar' ? 'استخراج الجداول' : 'Tables'}</span>
           </button>
 
@@ -300,7 +341,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <button
             type="button"
             onClick={() => setIsSpellModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold border border-indigo-200 shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold border border-indigo-300 shadow-2xs transition-all active:scale-95"
             title={lang === 'ar' ? 'تدقيق إملائي ونحوي ذكي' : 'Smart Spell & Grammar Audit'}
           >
             <SpellCheck className="w-4 h-4 text-indigo-600" />
@@ -311,24 +352,24 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <button
             type="button"
             onClick={() => setShowAudioProof(!showAudioProof)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors shadow-xs ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all shadow-2xs active:scale-95 ${
               showAudioProof
-                ? 'bg-amber-100 text-amber-900 border-amber-300'
-                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
+                ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/20'
+                : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300'
             }`}
             title={lang === 'ar' ? 'قراءة صوتية للتدقيق والتحقق' : 'Audio Proofreader'}
           >
-            <Volume2 className="w-4 h-4 text-amber-600" />
+            <Volume2 className={`w-4 h-4 ${showAudioProof ? 'text-white' : 'text-amber-600'}`} />
             <span className="hidden sm:inline">{lang === 'ar' ? 'مراجعة صوتية' : 'Audio Proof'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsMathModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-200 shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-800 text-xs font-bold border border-fuchsia-300 shadow-2xs transition-all active:scale-95"
             title={t.editor.evaluateMath}
           >
-            <Calculator className="w-4 h-4 text-gray-700" />
+            <Calculator className="w-4 h-4 text-fuchsia-600" />
             <span className="hidden sm:inline">{lang === 'ar' ? 'فحص الحسابات' : 'Math Audit'}</span>
           </button>
 
@@ -336,18 +377,33 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <button
             type="button"
             onClick={handleCopyFullDocument}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold border border-gray-300 shadow-xs transition-all"
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border shadow-2xs transition-all active:scale-95 ${
+              copiedFull
+                ? 'bg-emerald-500 text-white border-emerald-600 shadow-md'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+            }`}
             title={t.editor.copyFullRich}
           >
-            {copiedFull ? <CheckCheck className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-gray-700" />}
+            {copiedFull ? <CheckCheck className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-slate-700" />}
             <span>{copiedFull ? (lang === 'ar' ? 'تم نسخ كامل الصورة!' : 'Full Copy Done!') : (lang === 'ar' ? 'نسخ كامل الصورة' : 'Copy All')}</span>
+          </button>
+
+          {/* PowerPoint (.pptx) Export Button */}
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 active:scale-95 transition-all"
+            title={lang === 'ar' ? 'تصدير كعرض تقديمي PowerPoint' : 'Export as PowerPoint presentation'}
+          >
+            <Presentation className="w-4 h-4 text-amber-100" />
+            <span>PowerPoint</span>
           </button>
 
           {/* Primary Word Export Button */}
           <button
             type="button"
             onClick={() => setIsExportModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs sm:text-sm shadow-xs active:scale-98 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-500/25 active:scale-95 transition-all border border-blue-500/30"
           >
             <Download className="w-4 h-4" />
             <span>{t.editor.exportDocx}</span>
@@ -383,40 +439,59 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           )}
         </div>
 
-        {/* View Layout Switcher */}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200/80">
-          <button
-            type="button"
-            onClick={() => setViewMode('split')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              viewMode === 'split' ? 'bg-white text-gray-900 font-bold shadow-xs' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Columns className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.editor.splitView}</span>
-          </button>
+        {/* View Layout Switcher & Synchronized Scroll Toggle */}
+        <div className="flex items-center gap-2">
+          {viewMode === 'split' && (
+            <button
+              type="button"
+              onClick={() => setIsSyncScroll(!isSyncScroll)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                isSyncScroll
+                  ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-xs'
+                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              }`}
+              title={lang === 'ar' ? 'تمرير الصورة والنص في نفس اللحظة للمقارنة والتدقيق' : 'Scroll image and text together for synchronized proofreading'}
+            >
+              <ArrowUpDown className={`w-3.5 h-3.5 ${isSyncScroll ? 'text-amber-600 animate-pulse' : 'text-gray-400'}`} />
+              <span>{lang === 'ar' ? 'تزامن التمرير' : 'Sync Scroll'}</span>
+              <span className={`w-2 h-2 rounded-full ${isSyncScroll ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-gray-300'}`} />
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setViewMode('editor')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              viewMode === 'editor' ? 'bg-white text-gray-900 font-bold shadow-xs' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.editor.fullEditor}</span>
-          </button>
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200/80">
+            <button
+              type="button"
+              onClick={() => setViewMode('split')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'split' ? 'bg-white text-gray-900 font-bold shadow-xs' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Columns className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t.editor.splitView}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setViewMode('image')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-              viewMode === 'image' ? 'bg-white text-gray-900 font-bold shadow-xs' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.editor.fullImage}</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('editor')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'editor' ? 'bg-white text-gray-900 font-bold shadow-xs' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t.editor.fullEditor}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('image')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'image' ? 'bg-white text-gray-900 font-bold shadow-xs' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t.editor.fullImage}</span>
+            </button>
+          </div>
         </div>
 
       </div>
@@ -459,20 +534,20 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               </div>
 
               {/* Zoom & Rotation Controls */}
-              <div className="flex items-center gap-1 text-gray-600">
+              <div className="flex items-center gap-1.5 text-slate-600">
                 <button
                   type="button"
                   onClick={() => setImageZoom(z => Math.max(0.6, z - 0.2))}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-700"
+                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
                   title="Zoom Out"
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-[10px] font-mono px-1">{Math.round(imageZoom * 100)}%</span>
+                <span className="text-[10px] font-mono px-1 font-bold text-slate-700">{Math.round(imageZoom * 100)}%</span>
                 <button
                   type="button"
                   onClick={() => setImageZoom(z => Math.min(3, z + 0.2))}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-700"
+                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
                   title="Zoom In"
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
@@ -480,7 +555,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => setImageRotation(r => (r + 90) % 360)}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-700"
+                  className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors"
                   title="Rotate"
                 >
                   <RotateCw className="w-3.5 h-3.5" />
@@ -488,33 +563,38 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsCropModalOpen(true)}
-                  className="flex items-center gap-1 ml-1 px-2 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold hover:bg-amber-100 transition-colors"
+                  className="flex items-center gap-1 ml-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border border-amber-600/30 text-[11px] font-bold shadow-2xs transition-all active:scale-95"
                   title={lang === 'ar' ? 'تحديد واقتصاص جزء معين من الصورة لاستخراج النص منه' : 'Crop and OCR a specific area'}
                 >
-                  <Crop className="w-3 h-3 text-amber-600" />
+                  <Crop className="w-3.5 h-3.5" />
                   <span>{lang === 'ar' ? 'قص واقتصاص OCR' : 'Crop Area'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEnhancerModalOpen(true)}
-                  className="flex items-center gap-1 ml-1 px-2 py-1 rounded-md bg-gray-100 text-gray-700 border border-gray-200 text-[11px] font-medium hover:bg-gray-200 transition-colors"
+                  className="flex items-center gap-1 ml-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 text-[11px] font-bold shadow-2xs transition-colors"
                 >
-                  <Sliders className="w-3 h-3" />
+                  <Sliders className="w-3.5 h-3.5 text-sky-600" />
                   <span>{t.editor.filterWatermarkPreview}</span>
                 </button>
               </div>
             </div>
 
-            {/* Image Canvas View */}
-            <div className="flex-1 flex items-center justify-center p-4 bg-gray-100/60 overflow-auto max-h-[650px]">
+            {/* Image Canvas View with Synchronized Scroll */}
+            <div 
+              ref={imageScrollRef}
+              onScroll={handleImageScroll}
+              className="flex-1 flex flex-col items-center justify-start p-4 bg-gray-100/60 overflow-y-auto max-h-[650px] scroll-smooth"
+            >
               <img
                 src={activePage.enhancedImage || activePage.originalImage}
                 alt="Document Scan"
                 style={{
                   transform: `scale(${imageZoom}) rotate(${imageRotation}deg)`,
+                  transformOrigin: 'top center',
                   transition: 'transform 0.2s ease',
                 }}
-                className="max-h-[580px] w-auto object-contain rounded-lg shadow-sm select-none border border-gray-200 bg-white"
+                className="w-auto object-contain rounded-lg shadow-sm select-none border border-gray-200 bg-white"
               />
             </div>
 
@@ -641,15 +721,15 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               </button>
 
               {/* AI Copilot Dropdown / Actions */}
-              <div className="flex items-center gap-1 mr-auto">
+              <div className="flex items-center gap-1.5 mr-auto">
                 <button
                   type="button"
                   disabled={isAiLoading}
                   onClick={() => handleAiAction('proofread')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-semibold border border-gray-200 transition-colors disabled:opacity-50 shadow-xs"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 text-xs font-bold border border-violet-300 transition-all disabled:opacity-50 shadow-2xs active:scale-95"
                   title={t.editor.proofread}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-gray-600" />
+                  <Sparkles className="w-3.5 h-3.5 text-violet-600" />
                   <span className="hidden sm:inline">{t.editor.proofread}</span>
                 </button>
 
@@ -657,10 +737,10 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   type="button"
                   disabled={isAiLoading}
                   onClick={() => handleAiAction('translate')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-semibold border border-gray-200 transition-colors disabled:opacity-50 shadow-xs"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300 transition-all disabled:opacity-50 shadow-2xs active:scale-95"
                   title={t.editor.translate}
                 >
-                  <Languages className="w-3.5 h-3.5 text-gray-600" />
+                  <Languages className="w-3.5 h-3.5 text-emerald-600" />
                   <span className="hidden sm:inline">{t.editor.translate}</span>
                 </button>
               </div>
@@ -695,7 +775,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 <button
                   type="button"
                   onClick={handleReplaceAll}
-                  className="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold rounded-lg shadow-xs"
+                  className="px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl shadow-xs active:scale-95 transition-all"
                 >
                   {lang === 'ar' ? 'استبدال الكل' : 'Replace All'}
                 </button>
@@ -727,6 +807,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 ref={textareaRef}
                 value={activePage ? activePage.extractedMarkdown : doc.combinedMarkdown}
                 onChange={(e) => handleContentChange(e.target.value)}
+                onScroll={handleTextScroll}
                 dir={doc.readingDirection}
                 className="w-full flex-1 p-6 bg-transparent text-gray-900 font-cairo text-base leading-relaxed resize-none outline-hidden focus:ring-0"
                 placeholder={lang === 'ar' ? 'اكتب أو عدل النص المستخرج هنا...' : 'Type or edit the extracted text here...'}

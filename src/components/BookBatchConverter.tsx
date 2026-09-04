@@ -319,7 +319,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
             <button
               type="button"
               onClick={handleAddSamplePages}
-              className="px-3 py-2 rounded-xl bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 border border-gray-200 shadow-xs transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-800 border border-amber-300 shadow-2xs transition-all active:scale-95"
             >
               {lang === 'ar' ? 'تجربة 3 صفحات' : 'Add 3 Samples'}
             </button>
@@ -327,7 +327,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs"
+              className="flex items-center gap-1.5 px-4.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>{lang === 'ar' ? 'إضافة صور / كتاب PDF' : 'Add Images / PDF Book'}</span>
@@ -399,7 +399,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
                       type="button"
                       disabled={idx === 0}
                       onClick={() => movePage(idx, idx - 1)}
-                      className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-900 disabled:opacity-30"
+                      className="p-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 disabled:opacity-30 transition-colors"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
                     </button>
@@ -407,14 +407,14 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
                       type="button"
                       disabled={idx === bookPages.length - 1}
                       onClick={() => movePage(idx, idx + 1)}
-                      className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-900 disabled:opacity-30"
+                      className="p-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 disabled:opacity-30 transition-colors"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setBookPages(prev => prev.filter((_, i) => i !== idx))}
-                      className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-rose-600"
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -475,7 +475,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
               type="button"
               disabled={isProcessing}
               onClick={handleConvertBook}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-sm shadow-xs active:scale-98 transition-all disabled:opacity-50"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold text-sm shadow-md shadow-emerald-500/25 active:scale-95 transition-all disabled:opacity-50"
             >
               {isProcessing ? (
                 <>
@@ -515,7 +515,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
             <button
               type="button"
               onClick={() => setIsExportOpen(true)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-900 hover:bg-emerald-950 text-white font-bold text-xs sm:text-sm shadow-xs transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all active:scale-95"
             >
               <Download className="w-4 h-4" />
               <span>{t.editor.exportDocx}</span>

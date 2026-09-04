@@ -135,24 +135,42 @@ export const DocumentsLibrary: React.FC<DocumentsLibraryProps> = ({
         {/* Categories Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
           {[
-            { id: 'all', name: lang === 'ar' ? 'الكل' : 'All' },
-            { id: 'books', name: lang === 'ar' ? 'كتب مصورة' : 'Books' },
-            { id: 'documents', name: lang === 'ar' ? 'مستندات وتقارير' : 'Documents' },
-            { id: 'math', name: lang === 'ar' ? 'رياضيات ومعادلات' : 'Math' },
-            { id: 'invoices', name: lang === 'ar' ? 'فواتير وجداول' : 'Invoices' },
-          ].map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap border ${
-                selectedCategory === cat.id
-                  ? 'bg-gray-900 text-white border-gray-900 font-bold shadow-xs'
-                  : 'bg-gray-100 text-gray-700 border-gray-200/80 hover:bg-gray-200 hover:text-gray-900'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
+            { id: 'all', name: lang === 'ar' ? 'الكل' : 'All', color: 'slate' },
+            { id: 'books', name: lang === 'ar' ? 'كتب مصورة' : 'Books', color: 'emerald' },
+            { id: 'documents', name: lang === 'ar' ? 'مستندات وتقارير' : 'Documents', color: 'blue' },
+            { id: 'math', name: lang === 'ar' ? 'رياضيات ومعادلات' : 'Math', color: 'purple' },
+            { id: 'invoices', name: lang === 'ar' ? 'فواتير وجداول' : 'Invoices', color: 'amber' },
+          ].map((cat) => {
+            const isActive = selectedCategory === cat.id;
+            let activeClasses = 'bg-slate-900 text-white border-slate-900 shadow-xs font-bold';
+            let inactiveClasses = 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100';
+
+            if (cat.id === 'books') {
+              activeClasses = 'bg-emerald-700 text-white border-emerald-700 shadow-xs font-bold';
+              inactiveClasses = 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100';
+            } else if (cat.id === 'documents') {
+              activeClasses = 'bg-blue-700 text-white border-blue-700 shadow-xs font-bold';
+              inactiveClasses = 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100';
+            } else if (cat.id === 'math') {
+              activeClasses = 'bg-purple-700 text-white border-purple-700 shadow-xs font-bold';
+              inactiveClasses = 'bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100';
+            } else if (cat.id === 'invoices') {
+              activeClasses = 'bg-amber-600 text-white border-amber-600 shadow-xs font-bold';
+              inactiveClasses = 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100';
+            }
+
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap border active:scale-95 ${
+                  isActive ? activeClasses : inactiveClasses
+                }`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
         </div>
 
       </div>
@@ -174,12 +192,18 @@ export const DocumentsLibrary: React.FC<DocumentsLibraryProps> = ({
             <div
               key={item.id}
               onClick={() => onOpenDocument(item)}
-              className="group relative rounded-2xl bg-white border border-gray-200 hover:border-gray-400 p-5 shadow-xs hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col justify-between"
+              className="group relative rounded-2xl bg-white border border-slate-200 hover:border-slate-400 p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               {/* Card Header & Category */}
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200">
+                  <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                    item.category === 'books'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : item.category === 'math'
+                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                      : 'bg-blue-50 text-blue-800 border-blue-200'
+                  }`}>
                     {item.category === 'books' ? 'BOOK' : item.category === 'math' ? 'MATH' : 'DOCX'}
                   </span>
 
@@ -189,7 +213,7 @@ export const DocumentsLibrary: React.FC<DocumentsLibraryProps> = ({
                   </div>
                 </div>
 
-                <h3 className="text-base font-bold text-gray-900 group-hover:text-black transition-colors font-cairo line-clamp-1 mb-2">
+                <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-700 transition-colors font-cairo line-clamp-1 mb-2">
                   {item.title}
                 </h3>
 
@@ -208,22 +232,22 @@ export const DocumentsLibrary: React.FC<DocumentsLibraryProps> = ({
                   {item.stats.mathEquationsCount > 0 && (
                     <>
                       <span>•</span>
-                      <span className="text-gray-700 font-bold">{item.stats.mathEquationsCount} math</span>
+                      <span className="text-purple-700 font-bold">{item.stats.mathEquationsCount} math</span>
                     </>
                   )}
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => handleQuickWordDownload(e, item)}
                     disabled={downloadingId === item.id}
-                    className="p-2 rounded-xl bg-gray-100 hover:bg-gray-900 hover:text-white text-gray-700 text-xs font-semibold transition-all shadow-xs"
+                    className="p-2 rounded-xl bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 text-xs font-semibold transition-all shadow-2xs active:scale-95"
                     title={t.library.exportWord}
                   >
                     {downloadingId === item.id ? (
-                      <Sparkles className="w-3.5 h-3.5 animate-spin text-gray-900" />
+                      <Sparkles className="w-3.5 h-3.5 animate-spin text-blue-600" />
                     ) : (
                       <Download className="w-3.5 h-3.5" />
                     )}
@@ -235,7 +259,7 @@ export const DocumentsLibrary: React.FC<DocumentsLibraryProps> = ({
                       e.stopPropagation();
                       onDeleteDocument(item.id);
                     }}
-                    className="p-2 rounded-xl hover:bg-rose-50 text-gray-400 hover:text-rose-600 text-xs transition-colors"
+                    className="p-2 rounded-xl bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-200 text-xs transition-all shadow-2xs active:scale-95"
                     title={t.library.deleteDoc}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

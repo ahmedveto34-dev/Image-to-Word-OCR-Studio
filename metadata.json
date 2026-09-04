@@ -1,6 +1,6 @@
 {
-  "name": "محول الصور إلى وورد الذكي | Image to Word OCR Studio",
-  "description": "تطبيق ذكي وفاخر لتحويل الصور والكتب المصورة إلى مستندات Word و PDF قابلة للتعديل والبحث، مع إزالة العلامات المائية ودعم فائق للغة العربية والإنجليزية والمعادلات الحسابية والمزامنة السحابية.",
+  "name": "TAHWEEL",
+  "description": "منصة TAHWEEL الذكية لتحويل الصور والمستندات والكتب إلى ملفات Word و PowerPoint و PDF قابلة للتعديل والبحث مع إزالة العلامات المائية.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

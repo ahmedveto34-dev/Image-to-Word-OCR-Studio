@@ -141,7 +141,7 @@ export const TableExtractorModal: React.FC<TableExtractorModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleCopy(table, 'excel')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
                       title={isAr ? 'نسخ منسق للصق المباشر في Excel و Word' : 'Copy formatted for Excel & Word'}
                     >
                       {copiedId === `${table.id}-excel` ? (
@@ -159,20 +159,20 @@ export const TableExtractorModal: React.FC<TableExtractorModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleCopy(table, 'tsv')}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-medium border border-gray-200 transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold border border-teal-300 shadow-2xs active:scale-95 transition-all"
                       title="TSV / Google Sheets"
                     >
-                      <Copy className="w-3.5 h-3.5 text-gray-500" />
+                      <Copy className="w-3.5 h-3.5 text-teal-600" />
                       <span>TSV / Sheets</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleDownloadCsv(table, idx)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-medium border border-gray-200 transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold border border-sky-300 shadow-2xs active:scale-95 transition-all"
                       title="Download CSV"
                     >
-                      <Download className="w-3.5 h-3.5 text-gray-500" />
+                      <Download className="w-3.5 h-3.5 text-sky-600" />
                       <span>CSV</span>
                     </button>
                   </div>
