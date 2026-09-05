@@ -128,101 +128,92 @@ export async function applyImageFilters(
 }
 
 /**
- * Converts a File, Blob, Blob URL, or Data URL to a clean Base64 data string and mimeType.
+ * Converts a File, Blob, Blob URL, or Data URL to an optimized Base64 data string and mimeType.
+ * Automatically downscales oversized scans/photos (> 2048px) for optimal speed and reliability.
  */
 export async function fileOrUrlToBase64(
   input: File | Blob | string
 ): Promise<{ base64Data: string; mimeType: string; dataUrl: string }> {
-  if (input instanceof File || input instanceof Blob) {
+  const MAX_DIMENSION = 2048; // Optimal resolution for Gemini OCR without bloat
+  const JPEG_QUALITY = 0.92;
+
+  // Helper to load an image element and compress/downscale via canvas if needed
+  const optimizeImageSrc = (src: string): Promise<{ base64Data: string; mimeType: string; dataUrl: string }> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const match = result.match(/^data:([^;]+);base64,(.+)$/s);
-        if (match) {
-          resolve({
-            mimeType: match[1] || 'image/jpeg',
-            base64Data: match[2],
-            dataUrl: result,
-          });
-        } else {
-          resolve({
-            mimeType: input.type || 'image/jpeg',
-            base64Data: result,
-            dataUrl: result,
-          });
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        // Check if downscale is needed
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIMENSION) / width);
+            width = MAX_DIMENSION;
+          } else {
+            width = Math.round((width * MAX_DIMENSION) / height);
+            height = MAX_DIMENSION;
+          }
         }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          const match = src.match(/^data:([^;]+);base64,(.+)$/s);
+          if (match) {
+            return resolve({ mimeType: match[1], base64Data: match[2], dataUrl: src });
+          }
+          return resolve({ mimeType: 'image/jpeg', base64Data: src, dataUrl: src });
+        }
+
+        // Fill white background for transparent PNGs
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+        const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+        resolve({
+          mimeType: 'image/jpeg',
+          base64Data: match ? match[2] : dataUrl,
+          dataUrl,
+        });
       };
+      img.onerror = (err) => reject(new Error('Failed to load image for processing: ' + err));
+      img.src = src;
+    });
+  };
+
+  if (input instanceof File || input instanceof Blob) {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(input);
     });
+    return optimizeImageSrc(dataUrl);
   }
 
   if (typeof input === 'string') {
-    // If it's already a data URL
     if (input.startsWith('data:')) {
-      const match = input.match(/^data:([^;]+);base64,(.+)$/s);
-      if (match) {
-        return {
-          mimeType: match[1] || 'image/jpeg',
-          base64Data: match[2],
-          dataUrl: input,
-        };
-      }
+      return optimizeImageSrc(input);
     }
 
-    // If it's a blob: or http(s) url, fetch and convert to base64
     try {
       const response = await fetch(input);
       const blob = await response.blob();
-      return new Promise((resolve, reject) => {
+      const dataUrl: string = await new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          const match = result.match(/^data:([^;]+);base64,(.+)$/s);
-          if (match) {
-            resolve({
-              mimeType: match[1] || blob.type || 'image/jpeg',
-              base64Data: match[2],
-              dataUrl: result,
-            });
-          } else {
-            resolve({
-              mimeType: blob.type || 'image/jpeg',
-              base64Data: result,
-              dataUrl: result,
-            });
-          }
-        };
+        reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
+      return optimizeImageSrc(dataUrl);
     } catch {
-      // Fallback: draw onto canvas
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth || img.width || 800;
-          canvas.height = img.naturalHeight || img.height || 600;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Canvas context not available'));
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-          const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
-          resolve({
-            mimeType: 'image/jpeg',
-            base64Data: match ? match[2] : dataUrl,
-            dataUrl,
-          });
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = input;
-      });
+      return optimizeImageSrc(input);
     }
   }
 

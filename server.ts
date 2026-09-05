@@ -33,8 +33,8 @@ function getGeminiClient(): GoogleGenAI {
 const FALLBACK_MODELS = [
   'gemini-3.8-flash',
   'gemini-3.1-flash-lite',
-  'gemini-2.5-flash',
   'gemini-flash-latest',
+  'gemini-2.5-flash-preview-12-2025',
 ];
 
 async function callGeminiWithFallback(

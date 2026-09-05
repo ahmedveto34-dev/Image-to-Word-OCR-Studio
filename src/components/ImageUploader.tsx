@@ -66,6 +66,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
+  const [processingStatusText, setProcessingStatusText] = useState('');
   const [isParsingPdf, setIsParsingPdf] = useState(false);
   const [pdfStatusText, setPdfStatusText] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -149,12 +150,17 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     setSelectedFiles(prev => [...prev, newItem]);
   };
 
-  // Process OCR
+  // Process OCR with per-page resilience & automatic retry
   const handleStartOCR = async () => {
     if (selectedFiles.length === 0) return;
 
     setIsProcessing(true);
-    setProcessProgress(10);
+    setProcessProgress(5);
+    setProcessingStatusText(
+      lang === 'ar'
+        ? `بدء المعالجة الذكية لـ (${selectedFiles.length}) صفحة...`
+        : `Starting smart OCR for (${selectedFiles.length}) pages...`
+    );
     setErrorMessage(null);
 
     try {
@@ -167,43 +173,96 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       let mainTitle = '';
       let primaryLanguage: 'ar' | 'en' | 'mixed' = 'ar';
       let readingDirection: 'rtl' | 'ltr' = 'rtl';
+      let failedPagesCount = 0;
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const item = selectedFiles[i];
-        setProcessProgress(Math.floor(20 + (i / selectedFiles.length) * 70));
+        const currentProgress = Math.floor(10 + (i / selectedFiles.length) * 85);
+        setProcessProgress(currentProgress);
+        setProcessingStatusText(
+          lang === 'ar'
+            ? `جارٍ معالجة واستخراج الصفحة ${i + 1} من ${selectedFiles.length}: ${item.name}...`
+            : `Processing page ${i + 1} of ${selectedFiles.length}: ${item.name}...`
+        );
 
-        // Reliably convert image source (file, enhancedUrl, or blob url) to Base64 data
+        // Convert image source to Base64 (with auto-downscaling for speed)
         const source = item.enhancedUrl || item.file || item.previewUrl;
         const { base64Data, mimeType, dataUrl } = await fileOrUrlToBase64(source);
 
-        const response = await fetch('/api/ocr/process', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64Data,
-            mimeType: mimeType || 'image/jpeg',
-            options: {
-              removeWatermarks,
-              extractMath: detectMath,
-              extractTables: detectTables,
-              language: languageMode,
-              customInstructions,
-            },
-          }),
-        });
+        let ocrResult: OCRResult | null = null;
+        let lastErrorMsg = '';
 
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || `OCR extraction failed for image ${i + 1} (${item.name})`);
+        // Try OCR with up to 3 attempts (immediate retry for transient network / rate limits)
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            if (attempt > 0) {
+              setProcessingStatusText(
+                lang === 'ar'
+                  ? `إعادة محاولة سريعة للصفحة ${i + 1} (المحاولة ${attempt + 1})...`
+                  : `Retrying page ${i + 1} (Attempt ${attempt + 1})...`
+              );
+              await new Promise((res) => setTimeout(res, 1200 * attempt));
+            }
+
+            const response = await fetch('/api/ocr/process', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageBase64: base64Data,
+                mimeType: mimeType || 'image/jpeg',
+                options: {
+                  removeWatermarks,
+                  extractMath: detectMath,
+                  extractTables: detectTables,
+                  language: languageMode,
+                  customInstructions,
+                },
+              }),
+            });
+
+            if (!response.ok) {
+              const errData = await response.json().catch(() => ({}));
+              throw new Error(errData.error || `HTTP error ${response.status}`);
+            }
+
+            const resData = await response.json();
+            if (resData.success && resData.data) {
+              ocrResult = resData.data;
+              break; // Success!
+            } else {
+              throw new Error(resData.error || 'Invalid OCR response');
+            }
+          } catch (pageErr: any) {
+            lastErrorMsg = pageErr?.message || 'Extraction error';
+          }
         }
 
-        const resData = await response.json();
-        const ocr: OCRResult = resData.data;
+        if (!ocrResult) {
+          failedPagesCount++;
+          // Fallback page so batch is not completely destroyed
+          ocrResult = {
+            title: item.name.replace(/\.[^/.]+$/, ''),
+            primaryLanguage: 'ar',
+            readingDirection: 'rtl',
+            markdown: `> **[${lang === 'ar' ? 'تنبيه: تعذر استخراج هذه الصفحة آلياً' : 'Notice: Automatic extraction failed for this page'}]**\n\n*(يمكنك كتابة نص هذه الصفحة أو إعادة استخراجها منفردة)*`,
+            plainText: item.name,
+            summary: 'صفحة لم يتم استخراجها بالكامل',
+            detectedElements: {
+              hasTables: false,
+              hasMath: false,
+              hasHandwriting: false,
+              watermarksDetectedAndFiltered: false,
+              mathFormulas: [],
+              wordCount: 0,
+              confidenceScore: 0,
+            },
+          };
+        }
 
-        if (i === 0) {
-          mainTitle = ocr.title || item.name.replace(/\.[^/.]+$/, '');
-          primaryLanguage = ocr.primaryLanguage || 'ar';
-          readingDirection = ocr.readingDirection || 'rtl';
+        if (i === 0 || !mainTitle) {
+          mainTitle = ocrResult.title || item.name.replace(/\.[^/.]+$/, '');
+          primaryLanguage = ocrResult.primaryLanguage || 'ar';
+          readingDirection = ocrResult.readingDirection || 'rtl';
         }
 
         pages.push({
@@ -213,29 +272,30 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           enhancedImage: item.enhancedUrl,
           fileName: item.name,
           fileSize: item.size,
-          extractedMarkdown: ocr.markdown || '',
-          extractedPlainText: ocr.plainText || '',
-          readingDirection: ocr.readingDirection || 'rtl',
+          extractedMarkdown: ocrResult.markdown || '',
+          extractedPlainText: ocrResult.plainText || '',
+          readingDirection: ocrResult.readingDirection || 'rtl',
           status: 'completed',
-          detectedElements: ocr.detectedElements,
+          detectedElements: ocrResult.detectedElements,
         });
 
-        if (ocr.markdown) {
+        if (ocrResult.markdown) {
           if (combinedMarkdown) combinedMarkdown += `\n\n---\n\n## ${lang === 'ar' ? 'الصفحة' : 'Page'} ${i + 1}\n\n`;
-          combinedMarkdown += ocr.markdown;
+          combinedMarkdown += ocrResult.markdown;
         }
 
-        if (ocr.detectedElements) {
-          totalWordCount += ocr.detectedElements.wordCount || 0;
-          totalCharCount += (ocr.plainText || '').length;
-          if (ocr.detectedElements.hasTables) totalTables += 1;
-          if (ocr.detectedElements.mathFormulas) {
-            detectedMathList.push(...ocr.detectedElements.mathFormulas);
+        if (ocrResult.detectedElements) {
+          totalWordCount += ocrResult.detectedElements.wordCount || 0;
+          totalCharCount += (ocrResult.plainText || '').length;
+          if (ocrResult.detectedElements.hasTables) totalTables += 1;
+          if (ocrResult.detectedElements.mathFormulas) {
+            detectedMathList.push(...ocrResult.detectedElements.mathFormulas);
           }
         }
       }
 
       setProcessProgress(100);
+      setProcessingStatusText(lang === 'ar' ? 'تم اكتمال الاستخراج بنجاح! جاري فتح المحرر...' : 'Extraction completed! Opening editor...');
 
       // Construct final Document Item
       const newDoc: DocumentItem = {
@@ -262,10 +322,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         },
       };
 
+      if (failedPagesCount > 0 && selectedFiles.length === 1) {
+        throw new Error(lang === 'ar' ? 'تعذر استخراج النص من الصورة. يرجى التأكد من وضوح الصورة وإعادة المحاولة.' : 'Failed to extract text from image. Please verify clarity and retry.');
+      }
+
       setTimeout(() => {
         setIsProcessing(false);
         onDocumentCreated(newDoc);
-      }, 500);
+      }, 400);
 
     } catch (err: any) {
       console.error('Batch OCR Processing Error:', err);
@@ -663,36 +727,56 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </div>
         )}
 
-        {/* Start OCR CTA Button */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>
-              {lang === 'ar'
-                ? 'يتم فحص الصور وتصفية الشوائب بأعلى معايير الدقة والسرعة السحابية'
-                : 'Processed securely with high-precision multimodal AI'}
-            </span>
-          </div>
+        {/* Start OCR CTA Button & Live Progress */}
+        <div className="pt-2 space-y-3">
+          {isProcessing && (
+            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-2.5 animate-fadeIn">
+              <div className="flex items-center justify-between text-xs font-bold text-indigo-950 font-cairo">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
+                  <span>{processingStatusText || (lang === 'ar' ? 'جارٍ التحويل الذكي...' : 'Processing...')}</span>
+                </div>
+                <span className="font-mono text-indigo-700">{processProgress}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-indigo-100 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 transition-all duration-300 rounded-full"
+                  style={{ width: `${processProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
-          <button
-            type="button"
-            disabled={selectedFiles.length === 0 || isProcessing}
-            onClick={handleStartOCR}
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700 text-white font-black text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none border border-indigo-400/30"
-          >
-            {isProcessing ? (
-              <>
-                <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
-                <span>{lang === 'ar' ? `جارٍ الاستخراج الذكي (${processProgress}%)...` : `Processing OCR (${processProgress}%)...`}</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>{t.upload.startBatch} ({selectedFiles.length})</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>
+                {lang === 'ar'
+                  ? 'يتم فحص الصور وتصفية الشوائب بأعلى معايير الدقة والسرعة السحابية'
+                  : 'Processed securely with high-precision multimodal AI'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={selectedFiles.length === 0 || isProcessing}
+              onClick={handleStartOCR}
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700 text-white font-black text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none border border-indigo-400/30"
+            >
+              {isProcessing ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+                  <span>{lang === 'ar' ? `جارٍ الاستخراج (${processProgress}%)...` : `Processing (${processProgress}%)...`}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>{t.upload.startBatch} ({selectedFiles.length})</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

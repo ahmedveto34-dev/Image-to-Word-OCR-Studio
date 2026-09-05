@@ -169,28 +169,61 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
         const source = item.file || item.previewUrl;
         const { base64Data, mimeType, dataUrl } = await fileOrUrlToBase64(source);
 
-        const response = await fetch('/api/ocr/process', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64Data,
-            mimeType: mimeType || 'image/jpeg',
-            options: {
-              removeWatermarks: true,
-              extractMath: true,
-              extractTables: true,
-              mode: 'book',
-            },
-          }),
-        });
+        let ocr: OCRResult | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            if (attempt > 0) {
+              await new Promise((res) => setTimeout(res, 1000 * attempt));
+            }
+            const response = await fetch('/api/ocr/process', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageBase64: base64Data,
+                mimeType: mimeType || 'image/jpeg',
+                options: {
+                  removeWatermarks: true,
+                  extractMath: true,
+                  extractTables: true,
+                  mode: 'book',
+                },
+              }),
+            });
 
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || `Failed to convert page ${i + 1}`);
+            if (!response.ok) {
+              const errData = await response.json().catch(() => ({}));
+              throw new Error(errData.error || `Failed to convert page ${i + 1}`);
+            }
+
+            const resData = await response.json();
+            if (resData.success && resData.data) {
+              ocr = resData.data;
+              break;
+            }
+          } catch (pErr) {
+            // retry
+          }
         }
 
-        const resData = await response.json();
-        const ocr: OCRResult = resData.data;
+        if (!ocr) {
+          ocr = {
+            title: item.chapterName || `الصفحة ${i + 1}`,
+            primaryLanguage: 'ar',
+            readingDirection: 'rtl',
+            markdown: `> **[${lang === 'ar' ? 'تنبيه: تعذر استخراج هذه الصفحة آلياً' : 'Automatic extraction failed for this page'}]**`,
+            plainText: item.chapterName || '',
+            summary: '',
+            detectedElements: {
+              hasTables: false,
+              hasMath: false,
+              hasHandwriting: false,
+              watermarksDetectedAndFiltered: false,
+              mathFormulas: [],
+              wordCount: 0,
+              confidenceScore: 0,
+            },
+          };
+        }
 
         pages.push({
           id: item.id,
