@@ -58,6 +58,8 @@ import { ImageCropModal } from './ImageCropModal';
 import { SpellCheckerModal } from './SpellCheckerModal';
 import { AudioProofReader } from './AudioProofReader';
 import { copyFullDocumentToClipboard, extractTablesFromMarkdown } from '../utils/tableExtractor';
+import { fileOrUrlToBase64 } from '../utils/imageFilters';
+import { OCRResult } from '../types';
 
 interface DocumentEditorProps {
   document: DocumentItem;
@@ -78,6 +80,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [copied, setCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isReExtracting, setIsReExtracting] = useState(false);
+  const [reExtractError, setReExtractError] = useState<string | null>(null);
 
   // Search & Replace state
   const [showSearch, setShowSearch] = useState(false);
@@ -242,6 +246,99 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   };
 
+  // Re-Extract active page OCR using AI
+  const handleReOcrPage = async () => {
+    if (!activePage) return;
+    setIsReExtracting(true);
+    setReExtractError(null);
+
+    try {
+      const source = activePage.enhancedImage || activePage.originalImage;
+      const { base64Data, mimeType } = await fileOrUrlToBase64(source);
+
+      let ocr: OCRResult | null = null;
+      let lastErrMessage = '';
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (attempt > 0) {
+            await new Promise((res) => setTimeout(res, 1000 * attempt));
+          }
+          const response = await fetch('/api/ocr/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageBase64: base64Data,
+              mimeType: mimeType || 'image/jpeg',
+              options: {
+                removeWatermarks: true,
+                extractMath: true,
+                extractTables: true,
+                mode: 'document',
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            lastErrMessage = errData.error || `HTTP ${response.status}`;
+            continue;
+          }
+
+          const resData = await response.json();
+          if (resData.success && resData.data) {
+            ocr = resData.data;
+            break;
+          }
+        } catch (callErr: any) {
+          lastErrMessage = callErr?.message || 'Network error';
+        }
+      }
+
+      if (!ocr) {
+        throw new Error(lastErrMessage || 'تعذر استخراج الصفحة بعد عدة محاولات.');
+      }
+
+      let updatedPages = [...doc.pages];
+      if (updatedPages[activePageIndex]) {
+        updatedPages[activePageIndex] = {
+          ...updatedPages[activePageIndex],
+          extractedMarkdown: ocr.markdown || '',
+          extractedPlainText: ocr.plainText || '',
+          readingDirection: ocr.readingDirection || 'rtl',
+          status: 'completed',
+          detectedElements: ocr.detectedElements,
+        };
+      }
+
+      const combined = updatedPages.map(p => p.extractedMarkdown).join('\n\n---\n\n');
+      const words = combined.split(/\s+/).filter(Boolean).length;
+      const chars = combined.length;
+
+      const updated: DocumentItem = {
+        ...doc,
+        pages: updatedPages,
+        combinedMarkdown: combined,
+        readingDirection: ocr.readingDirection || doc.readingDirection,
+        updatedAt: new Date().toISOString(),
+        stats: {
+          ...doc.stats,
+          totalWords: words,
+          totalCharacters: chars,
+        },
+      };
+
+      setDoc(updated);
+      setIsSaved(false);
+      onUpdateDocument(updated);
+    } catch (err: any) {
+      console.error('Re-OCR failed:', err);
+      setReExtractError(err?.message || (lang === 'ar' ? 'فشل استخراج الصفحة، يرجى المحاولة ثانية' : 'Extraction failed'));
+    } finally {
+      setIsReExtracting(false);
+    }
+  };
+
   // Search & Replace
   const handleReplaceAll = () => {
     if (!searchQuery) return;
@@ -316,6 +413,18 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         {/* Action Buttons: Save, Word Export, PDF, Math, Copy */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
           
+          {/* Quick AI Re-OCR active page button */}
+          <button
+            type="button"
+            disabled={isReExtracting}
+            onClick={handleReOcrPage}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black shadow-md shadow-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
+            title={lang === 'ar' ? 'إعادة استخراج نص وجداول الصفحة الحالية بالذكاء الاصطناعي' : 'Re-extract current page with AI OCR'}
+          >
+            <RefreshCw className={`w-4 h-4 text-white ${isReExtracting ? 'animate-spin' : ''}`} />
+            <span>{isReExtracting ? (lang === 'ar' ? 'جارٍ الاستخراج...' : 'Extracting...') : (lang === 'ar' ? 'استخراج الصفحة (OCR)' : 'Extract Page')}</span>
+          </button>
+
           <button
             type="button"
             onClick={handleSave}
@@ -800,6 +909,53 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     <Sparkles className="w-5 h-5 animate-spin text-gray-700" />
                     <span>{lang === 'ar' ? 'جارٍ التدقيق والتنسيق الذكي...' : 'AI Copilot working...'}</span>
                   </div>
+                </div>
+              )}
+
+              {isReExtracting && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/85 backdrop-blur-xs gap-3">
+                  <div className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-amber-300 text-amber-950 text-sm font-bold shadow-xl">
+                    <RefreshCw className="w-6 h-6 animate-spin text-amber-600" />
+                    <div className="flex flex-col">
+                      <span className="font-extrabold">{lang === 'ar' ? 'جارٍ استخراج وتنسيق هذه الصفحة بالذكاء الاصطناعي...' : 'Extracting & formatting page with AI...'}</span>
+                      <span className="text-xs text-amber-800 font-normal">{lang === 'ar' ? 'يتم قراءة النصوص والجداول والأرقام بدقة فائقة' : 'Processing text, tables, and mathematical formulas'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notice Banner if Page is in Fallback state */}
+              {activePage?.extractedMarkdown && (activePage.extractedMarkdown.includes('تعذر استخراج') || activePage.extractedMarkdown.includes('[تنبيه:')) && (
+                <div className="m-4 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-300 shadow-sm space-y-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shrink-0">
+                        <Sparkles className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-amber-950 font-cairo">
+                          {lang === 'ar' ? 'هذه الصفحة جاهزة للاستخراج الآلي الذكي' : 'Ready to extract text & tables from image'}
+                        </h4>
+                        <p className="text-xs text-amber-800/90">
+                          {lang === 'ar' ? 'انقر على الزر لاستخراج كافة الجداول والقرارات الإدارية والنصوص بدقة 100%' : 'Click below to extract all tables and text from this page scan'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isReExtracting}
+                      onClick={handleReOcrPage}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black shadow-md shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                      <span>{lang === 'ar' ? '⚡ استخراج نص وجداول الصفحة الآن' : '⚡ Extract Page Now'}</span>
+                    </button>
+                  </div>
+                  {reExtractError && (
+                    <div className="p-2.5 rounded-lg bg-red-100/80 border border-red-300 text-xs font-bold text-red-800">
+                      {reExtractError}
+                    </div>
+                  )}
                 </div>
               )}
 
