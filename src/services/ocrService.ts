@@ -220,3 +220,105 @@ export async function processOcrImage(
     throw err;
   }
 }
+
+export function detectTextPrimaryLanguage(text: string): 'ar' | 'en' {
+  const arabicLetters = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || []).length;
+  const englishLetters = (text.match(/[a-zA-Z]/g) || []).length;
+  return arabicLetters >= englishLetters ? 'ar' : 'en';
+}
+
+/**
+ * Universal AI Text Transformation (Translate, Proofread, Summarize, Format)
+ * Works via Server API route and falls back to Direct Client-side Gemini SDK.
+ */
+export async function transformTextWithAi(
+  text: string,
+  action: 'translate' | 'proofread' | 'summarize' | 'format_formal',
+  explicitTargetLang?: 'ar' | 'en'
+): Promise<{ result: string; sourceLang: 'ar' | 'en'; targetLang: 'ar' | 'en' }> {
+  const detectedSource = detectTextPrimaryLanguage(text);
+  const targetLang = explicitTargetLang || (detectedSource === 'ar' ? 'en' : 'ar');
+
+  // 1. Try server endpoint
+  try {
+    const serverResponse = await fetch('/api/ai/transform', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        task: action,
+        text,
+        targetLang,
+        targetLanguage: targetLang,
+      }),
+    });
+
+    if (serverResponse.ok) {
+      const resData = await serverResponse.json();
+      if (resData.success && resData.result) {
+        return {
+          result: resData.result,
+          sourceLang: detectedSource,
+          targetLang,
+        };
+      }
+    }
+  } catch (serverErr) {
+    console.warn('Server AI transform endpoint unavailable, trying client fallback...', serverErr);
+  }
+
+  // 2. Client-side Fallback via Gemini API key
+  const clientKey = getClientStoredApiKey();
+  if (!clientKey) {
+    throw new Error('يرجى التأكد من اتصال الخادم أو إدخال مفتاح Gemini API Key لتنفيذ الترجمة');
+  }
+
+  const ai = new GoogleGenAI({ apiKey: clientKey });
+
+  let systemInstruction = '';
+  let userPrompt = '';
+
+  if (action === 'translate') {
+    if (targetLang === 'en') {
+      systemInstruction = 'You are a certified master translator. Translate the provided Arabic document into fluent, natural, professional English. CRITICAL: Preserve all Markdown formatting, headings (#, ##), tables (| ... |), lists, math equations, and structure. Translate all text and table cells accurately.';
+      userPrompt = `Translate this entire Arabic document into English:\n\n${text}`;
+    } else {
+      systemInstruction = 'You are a certified master translator. Translate the provided English document into fluent, formal standard Arabic (الفصحى الحديثة). CRITICAL: Preserve all Markdown formatting, headings (#, ##), tables (| ... |), lists, math equations, and structure. Translate all text and table cells accurately.';
+      userPrompt = `Translate this entire English document into Arabic:\n\n${text}`;
+    }
+  } else if (action === 'proofread') {
+    systemInstruction = 'You are an expert Arabic and English copyeditor. Fix all spelling, grammar, punctuation, and typographical errors. Preserve all Markdown structure, tables, and formatting.';
+    userPrompt = `Proofread and correct this document:\n\n${text}`;
+  } else if (action === 'summarize') {
+    systemInstruction = 'You are an executive summarization assistant. Provide a structured summary of the key takeaways and bullet points.';
+    userPrompt = `Summarize this text in ${detectedSource === 'ar' ? 'Arabic' : 'English'}:\n\n${text}`;
+  } else {
+    systemInstruction = 'You are an expert document assistant. Format this document professionally with clear headings and structure.';
+    userPrompt = `Format this document professionally:\n\n${text}`;
+  }
+
+  for (const modelName of FALLBACK_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          temperature: 0.2,
+        },
+      });
+
+      if (response.text) {
+        return {
+          result: response.text,
+          sourceLang: detectedSource,
+          targetLang,
+        };
+      }
+    } catch (err) {
+      console.warn(`Model ${modelName} failed for AI transform:`, err);
+    }
+  }
+
+  throw new Error('فشلت عملية الترجمة الذكية عبر جميع النماذج');
+}

@@ -43,6 +43,9 @@ import {
   SpellCheck,
   Volume2,
   Presentation,
+  ChevronDown,
+  ArrowLeftRight,
+  Sparkle,
   ArrowUpDown,
   RefreshCw
 } from 'lucide-react';
@@ -60,7 +63,12 @@ import { AudioProofReader } from './AudioProofReader';
 import { copyFullDocumentToClipboard, extractTablesFromMarkdown } from '../utils/tableExtractor';
 import { fileOrUrlToBase64 } from '../utils/imageFilters';
 import { OCRResult } from '../types';
-import { processOcrImage, getClientStoredApiKey } from '../services/ocrService';
+import { 
+  processOcrImage, 
+  getClientStoredApiKey, 
+  transformTextWithAi, 
+  detectTextPrimaryLanguage 
+} from '../services/ocrService';
 
 interface DocumentEditorProps {
   document: DocumentItem;
@@ -83,6 +91,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [copied, setCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiLoadingMessage, setAiLoadingMessage] = useState<string>('');
+  const [aiActionFeedback, setAiActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isTranslateMenuOpen, setIsTranslateMenuOpen] = useState(false);
   const [isReExtracting, setIsReExtracting] = useState(false);
   const [reExtractError, setReExtractError] = useState<string | null>(null);
 
@@ -218,34 +229,70 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }, 50);
   };
 
-  // AI Copilot Transformations
-  const handleAiAction = async (action: 'proofread' | 'translate' | 'format_formal' | 'summarize') => {
-    setIsAiLoading(true);
+  // AI Copilot Transformations (Proofreading, Translation AR ⇄ EN, Summarization, Formal Formatting)
+  const handleAiAction = async (
+    action: 'proofread' | 'translate' | 'format_formal' | 'summarize',
+    explicitTargetLang?: 'ar' | 'en'
+  ) => {
+    setIsTranslateMenuOpen(false);
     const targetText = activePage?.extractedMarkdown || doc.combinedMarkdown;
+    if (!targetText || !targetText.trim()) {
+      setAiActionFeedback({
+        type: 'error',
+        message: lang === 'ar' ? 'لا يوجد نص لتنفيذ العملية عليه' : 'No text available to process',
+      });
+      setTimeout(() => setAiActionFeedback(null), 3000);
+      return;
+    }
+
+    const currentLang = detectTextPrimaryLanguage(targetText);
+    const targetLang = explicitTargetLang || (currentLang === 'ar' ? 'en' : 'ar');
+
+    setIsAiLoading(true);
+    setAiActionFeedback(null);
+
+    if (action === 'translate') {
+      setAiLoadingMessage(
+        targetLang === 'en'
+          ? (lang === 'ar' ? 'جارٍ الترجمة الفورية من العربية إلى الإنجليزية...' : 'Translating from Arabic to English...')
+          : (lang === 'ar' ? 'جارٍ الترجمة الفورية من الإنجليزية إلى العربية...' : 'Translating from English to Arabic...')
+      );
+    } else if (action === 'proofread') {
+      setAiLoadingMessage(lang === 'ar' ? 'جارٍ التدقيق الإملائي والنحوي بالذكاء الاصطناعي...' : 'Proofreading with AI...');
+    } else if (action === 'summarize') {
+      setAiLoadingMessage(lang === 'ar' ? 'جارٍ تلخيص المستند واستخراج النقاط...' : 'Generating AI summary...');
+    } else {
+      setAiLoadingMessage(lang === 'ar' ? 'جارٍ التنسيق الذكي للمستند...' : 'Formatting document with AI...');
+    }
 
     try {
-      const response = await fetch('/api/ai/transform', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          text: targetText,
-          targetLang: lang === 'ar' ? 'en' : 'ar',
-        }),
-      });
-
-      const resData = await response.json();
-      if (resData.success && resData.result) {
+      const response = await transformTextWithAi(targetText, action, explicitTargetLang);
+      if (response && response.result) {
         if (action === 'summarize') {
-          handleContentChange(`${targetText}\n\n> 📋 **${lang === 'ar' ? 'ملخص الذكاء الاصطناعي' : 'AI Summary'}:**\n${resData.result}\n`);
+          handleContentChange(`${targetText}\n\n> 📋 **${lang === 'ar' ? 'ملخص الذكاء الاصطناعي' : 'AI Summary'}:**\n${response.result}\n`);
         } else {
-          handleContentChange(resData.result);
+          handleContentChange(response.result);
         }
+
+        const successMsg = action === 'translate'
+          ? (lang === 'ar' 
+              ? `✅ تمت الترجمة بنجاح (${response.sourceLang === 'ar' ? 'من العربي للانجليزي' : 'من الانجليزي للعربي'})` 
+              : `✅ Successfully translated from ${response.sourceLang.toUpperCase()} to ${response.targetLang.toUpperCase()}`)
+          : (lang === 'ar' ? '✅ تم تنفيذ العملية بنجاح' : '✅ Completed successfully');
+
+        setAiActionFeedback({ type: 'success', message: successMsg });
+        setTimeout(() => setAiActionFeedback(null), 4000);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('AI action failed:', err);
+      setAiActionFeedback({
+        type: 'error',
+        message: err?.message || (lang === 'ar' ? 'تعذر تنفيذ العملية، يرجى التحقق من مفتاح API' : 'Action failed, please check API key'),
+      });
+      setTimeout(() => setAiActionFeedback(null), 6000);
     } finally {
       setIsAiLoading(false);
+      setAiLoadingMessage('');
     }
   };
 
@@ -834,16 +881,57 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   <span className="hidden sm:inline">{t.editor.proofread}</span>
                 </button>
 
-                <button
-                  type="button"
-                  disabled={isAiLoading}
-                  onClick={() => handleAiAction('translate')}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300 transition-all disabled:opacity-50 shadow-2xs active:scale-95"
-                  title={t.editor.translate}
-                >
-                  <Languages className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="hidden sm:inline">{t.editor.translate}</span>
-                </button>
+                {/* Instant Bidirectional Translation (Arabic ⇄ English) */}
+                <div className="relative inline-flex items-center rounded-xl bg-emerald-50 border border-emerald-300 shadow-2xs">
+                  <button
+                    type="button"
+                    disabled={isAiLoading}
+                    onClick={() => handleAiAction('translate')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-l-xl rtl:rounded-l-none rtl:rounded-r-xl transition-all disabled:opacity-50 active:scale-95"
+                    title={lang === 'ar' ? 'ترجمة فورية ذكية (تلقائياً: من العربي للإنجليزي، أو من الإنجليزي للعربي)' : 'Smart Instant Translation (Auto: Arabic ⇄ English)'}
+                  >
+                    <Languages className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>{lang === 'ar' ? 'ترجمة فورية (عربي ⇄ EN)' : 'Translate (AR ⇄ EN)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isAiLoading}
+                    onClick={() => setIsTranslateMenuOpen(!isTranslateMenuOpen)}
+                    className="p-1.5 text-emerald-700 hover:bg-emerald-100 rounded-r-xl rtl:rounded-r-none rtl:rounded-l-xl border-l rtl:border-l-0 rtl:border-r border-emerald-300 transition-all"
+                    title={lang === 'ar' ? 'خيارات الترجمة' : 'Translation options'}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isTranslateMenuOpen && (
+                    <div className="absolute top-full mt-1.5 end-0 z-30 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 space-y-1 text-xs animate-fadeIn">
+                      <button
+                        type="button"
+                        onClick={() => handleAiAction('translate', 'en')}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-start hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 font-bold transition-all"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🇸🇦 ➔ 🇬🇧</span>
+                          <span>{lang === 'ar' ? 'ترجمة إلى الإنجليزية' : 'Translate to English'}</span>
+                        </span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-mono">EN</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAiAction('translate', 'ar')}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-start hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 font-bold transition-all"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🇬🇧 ➔ 🇸🇦</span>
+                          <span>{lang === 'ar' ? 'ترجمة إلى العربية' : 'Translate to Arabic'}</span>
+                        </span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-mono">AR</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
             </div>
@@ -896,11 +984,47 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             {/* Editable Text Area */}
             <div className="relative flex-1 min-h-[500px] flex flex-col bg-white">
               {isAiLoading && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-xs">
-                  <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-gray-200 text-gray-900 text-sm font-semibold shadow-lg">
-                    <Sparkles className="w-5 h-5 animate-spin text-gray-700" />
-                    <span>{lang === 'ar' ? 'جارٍ التدقيق والتنسيق الذكي...' : 'AI Copilot working...'}</span>
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 backdrop-blur-xs animate-fadeIn">
+                  <div className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-emerald-300 text-slate-900 text-sm font-bold shadow-xl">
+                    <Sparkles className="w-5 h-5 animate-spin text-emerald-600 shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="font-extrabold font-cairo text-slate-900">
+                        {aiLoadingMessage || (lang === 'ar' ? 'جارٍ المعالجة بالذكاء الاصطناعي...' : 'AI Copilot working...')}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        {lang === 'ar' ? 'الحفاظ على الجداول والتنسيقات والمعادلات بدقة' : 'Preserving markdown tables and structure'}
+                      </span>
+                    </div>
                   </div>
+                </div>
+              )}
+
+              {/* AI Action Feedback Toast / Banner */}
+              {aiActionFeedback && (
+                <div 
+                  className={`mx-4 mt-3 p-3 rounded-2xl border text-xs font-bold flex items-center justify-between gap-3 animate-fadeIn ${
+                    aiActionFeedback.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                      : 'bg-red-50 border-red-300 text-red-950'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {aiActionFeedback.type === 'success' ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <HelpCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    )}
+                    <span>{aiActionFeedback.message}</span>
+                  </div>
+                  {aiActionFeedback.type === 'error' && onOpenApiKeyModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenApiKeyModal}
+                      className="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shrink-0 transition-colors"
+                    >
+                      {lang === 'ar' ? 'فحص مفتاح API' : 'Check API Key'}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1072,13 +1196,17 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         />
       )}
 
-      {/* Table Extractor & Excel Export Modal */}
+      {/* Table Extractor & Excel / Word Export Modal */}
       {isTablesModalOpen && (
         <TableExtractorModal
           isOpen={isTablesModalOpen}
           onClose={() => setIsTablesModalOpen(false)}
           markdownContent={activePage?.extractedMarkdown || doc.combinedMarkdown}
           lang={lang}
+          documentTitle={doc.title}
+          imageSrc={activePage?.enhancedImage || activePage?.originalImage}
+          onUpdateMarkdown={(newContent) => handleContentChange(newContent)}
+          onOpenApiKeyModal={onOpenApiKeyModal}
         />
       )}
 

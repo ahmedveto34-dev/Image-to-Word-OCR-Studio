@@ -327,10 +327,21 @@ app.post('/api/ai/transform', async (req: Request, res: Response) => {
         systemInstruction = 'You are an elite Arabic & English proofreader, linguist, and copyeditor. Your mission is to fix all spelling errors, Hamzas (أ, إ, آ, ء, ئ, ؤ), Taa Marbuta vs Haa (ة / ه), Tanween, broken OCR words, spacing, punctuation marks (، ؛ . ؟ ! :), and grammatical concord while strictly preserving tables, math equations, markdown headers, and formatting.';
         prompt = `Please proofread and correct this document. Fix any Arabic spelling, Hamzas, Taa Marbuta, Tanween, grammar, punctuation, and typographical OCR errors. Retain all markdown structure, tables, and math equations:\n\n${text}`;
         break;
-      case 'translate':
-        systemInstruction = `You are a certified master translator. Translate the text into ${targetLang === 'ar' ? 'fluent, formal Arabic (الفصحى الحديثة)' : 'natural, professional English'}, preserving all formatting, math notation, and markdown structures.`;
-        prompt = `Translate the following text to ${targetLang === 'ar' ? 'Arabic' : 'English'}:\n\n${text}`;
+      case 'translate': {
+        const arabicLetters = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || []).length;
+        const englishLetters = (text.match(/[a-zA-Z]/g) || []).length;
+        const detectedSource = arabicLetters >= englishLetters ? 'ar' : 'en';
+        const finalTarget = targetLang || (detectedSource === 'ar' ? 'en' : 'ar');
+        
+        if (finalTarget === 'en') {
+          systemInstruction = 'You are a master certified translator. Translate the provided Arabic document into fluent, natural, professional English. CRITICAL: Preserve all Markdown formatting, headings (#, ##), tables (| ... |), lists, math equations, and structure. Translate all text and table cells accurately.';
+          prompt = `Translate this entire Arabic document into English:\n\n${text}`;
+        } else {
+          systemInstruction = 'You are a master certified translator. Translate the provided English document into fluent, formal standard Arabic (الفصحى الحديثة). CRITICAL: Preserve all Markdown formatting, headings (#, ##), tables (| ... |), lists, math equations, and structure. Translate all text and table cells accurately.';
+          prompt = `Translate this entire English document into Arabic:\n\n${text}`;
+        }
         break;
+      }
       case 'evaluate_math':
         systemInstruction = 'You are a mathematics and arithmetic verifier. Extract all mathematical equations and calculations from the text, verify whether each calculation is mathematically correct, show the step-by-step solution, and suggest corrections if any arithmetic error was present in the source.';
         prompt = `Analyze all arithmetic operations and equations in this text:\n\n${text}\n\nReturn a structured summary of each equation, its calculation result, and verification.`;

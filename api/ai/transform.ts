@@ -39,8 +39,12 @@ export default async function handler(req: any, res: any) {
     let systemInstruction = '';
     let userPrompt = '';
 
-    switch (task) {
+    const finalTask = task || req.body?.action || 'translate';
+    const requestedTarget = targetLanguage || req.body?.targetLang;
+
+    switch (finalTask) {
       case 'proofread':
+      case 'spellcheck':
         systemInstruction = 'You are an expert Arabic and English linguist and editor. Fix all spelling, grammar, punctuation, and structural errors in the provided text. Return ONLY the fully corrected text preserving the original Markdown formatting.';
         userPrompt = `Correct and proofread this document text:\n\n${text}`;
         break;
@@ -48,10 +52,21 @@ export default async function handler(req: any, res: any) {
         systemInstruction = 'You are an executive summarization assistant. Generate a clear, structured summary of the key points, actions, and decisions in the text using bullet points.';
         userPrompt = `Summarize this text in Arabic:\n\n${text}`;
         break;
-      case 'translate':
-        systemInstruction = `You are a certified technical translator. Translate the text into ${targetLanguage === 'ar' ? 'fluent modern standard Arabic' : 'natural fluent English'}. Preserve all Markdown headers, tables, lists, and numbers.`;
-        userPrompt = `Translate the following text:\n\n${text}`;
+      case 'translate': {
+        const arabicLetters = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || []).length;
+        const englishLetters = (text.match(/[a-zA-Z]/g) || []).length;
+        const detectedSource = arabicLetters >= englishLetters ? 'ar' : 'en';
+        const finalTarget = requestedTarget || (detectedSource === 'ar' ? 'en' : 'ar');
+
+        if (finalTarget === 'en') {
+          systemInstruction = 'You are a certified master translator. Translate the provided Arabic document into fluent, natural, professional English. CRITICAL: Preserve all Markdown formatting, headings (#, ##), tables (| ... |), lists, math equations, and structure. Translate all text and table cells accurately.';
+          userPrompt = `Translate this entire Arabic document into English:\n\n${text}`;
+        } else {
+          systemInstruction = 'You are a certified master translator. Translate the provided English document into fluent, formal standard Arabic (الفصحى الحديثة). CRITICAL: Preserve all Markdown formatting, headings (#, ##), tables (| ... |), lists, math equations, and structure. Translate all text and table cells accurately.';
+          userPrompt = `Translate this entire English document into Arabic:\n\n${text}`;
+        }
         break;
+      }
       default:
         systemInstruction = 'You are an expert AI document assistant. Help format and enhance the document content as requested.';
         userPrompt = `${customPrompt}\n\nDocument Text:\n${text}`;
