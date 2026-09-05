@@ -21,6 +21,7 @@ import { getSampleArabicBook } from '../utils/sampleData';
 import { ExportModal } from './ExportModal';
 import { fileOrUrlToBase64 } from '../utils/imageFilters';
 import { renderPdfToImages } from '../utils/pdfParser';
+import { processOcrImage } from '../services/ocrService';
 
 interface BookBatchConverterProps {
   onBookCreated: (doc: DocumentItem) => void;
@@ -175,29 +176,19 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
             if (attempt > 0) {
               await new Promise((res) => setTimeout(res, 1000 * attempt));
             }
-            const response = await fetch('/api/ocr/process', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                imageBase64: base64Data,
-                mimeType: mimeType || 'image/jpeg',
-                options: {
-                  removeWatermarks: true,
-                  extractMath: true,
-                  extractTables: true,
-                  mode: 'book',
-                },
-              }),
-            });
+            const resData = await processOcrImage(
+              base64Data,
+              mimeType || 'image/jpeg',
+              {
+                removeWatermarks: true,
+                extractMath: true,
+                extractTables: true,
+                mode: 'book',
+              }
+            );
 
-            if (!response.ok) {
-              const errData = await response.json().catch(() => ({}));
-              throw new Error(errData.error || `Failed to convert page ${i + 1}`);
-            }
-
-            const resData = await response.json();
-            if (resData.success && resData.data) {
-              ocr = resData.data;
+            if (resData) {
+              ocr = resData;
               break;
             }
           } catch (pErr) {

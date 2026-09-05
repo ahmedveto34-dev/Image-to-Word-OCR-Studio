@@ -60,17 +60,20 @@ import { AudioProofReader } from './AudioProofReader';
 import { copyFullDocumentToClipboard, extractTablesFromMarkdown } from '../utils/tableExtractor';
 import { fileOrUrlToBase64 } from '../utils/imageFilters';
 import { OCRResult } from '../types';
+import { processOcrImage, getClientStoredApiKey } from '../services/ocrService';
 
 interface DocumentEditorProps {
   document: DocumentItem;
   onUpdateDocument: (doc: DocumentItem) => void;
   lang: Language;
+  onOpenApiKeyModal?: () => void;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   document: initialDoc,
   onUpdateDocument,
   lang,
+  onOpenApiKeyModal,
 }) => {
   const t = translations[lang];
 
@@ -264,30 +267,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           if (attempt > 0) {
             await new Promise((res) => setTimeout(res, 1000 * attempt));
           }
-          const response = await fetch('/api/ocr/process', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              imageBase64: base64Data,
-              mimeType: mimeType || 'image/jpeg',
-              options: {
-                removeWatermarks: true,
-                extractMath: true,
-                extractTables: true,
-                mode: 'document',
-              },
-            }),
-          });
+          const resData = await processOcrImage(
+            base64Data,
+            mimeType || 'image/jpeg',
+            {
+              removeWatermarks: true,
+              extractMath: true,
+              extractTables: true,
+              mode: 'document',
+            }
+          );
 
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            lastErrMessage = errData.error || `HTTP ${response.status}`;
-            continue;
-          }
-
-          const resData = await response.json();
-          if (resData.success && resData.data) {
-            ocr = resData.data;
+          if (resData) {
+            ocr = resData;
             break;
           }
         } catch (callErr: any) {
@@ -333,7 +325,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       onUpdateDocument(updated);
     } catch (err: any) {
       console.error('Re-OCR failed:', err);
-      setReExtractError(err?.message || (lang === 'ar' ? 'فشل استخراج الصفحة، يرجى المحاولة ثانية' : 'Extraction failed'));
+      setReExtractError(err?.message || (lang === 'ar' ? 'فشل استخراج الصفحة، يرجى المحاولة ثانية أو إدخال مفتاح API' : 'Extraction failed'));
     } finally {
       setIsReExtracting(false);
     }
@@ -952,8 +944,17 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     </button>
                   </div>
                   {reExtractError && (
-                    <div className="p-2.5 rounded-lg bg-red-100/80 border border-red-300 text-xs font-bold text-red-800">
-                      {reExtractError}
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                      <span>{reExtractError}</span>
+                      {onOpenApiKeyModal && (
+                        <button
+                          type="button"
+                          onClick={onOpenApiKeyModal}
+                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all shrink-0"
+                        >
+                          {lang === 'ar' ? 'إدخال مفتاح Gemini API' : 'Enter API Key'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1039,14 +1040,20 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         <ImageCropModal
           isOpen={isCropModalOpen}
           onClose={() => setIsCropModalOpen(false)}
-          imageSrc={activePage.enhancedImage || activePage.originalImage}
+          imageUrl={activePage.enhancedImage || activePage.originalImage}
           lang={lang}
-          onCroppedOCR={(extractedText, mode) => {
+          onCropAndOCR={async (croppedBase64, insertMode) => {
+            const res = await processOcrImage(croppedBase64, 'image/jpeg', {
+              removeWatermarks: true,
+              extractMath: true,
+              extractTables: true,
+            });
+            const extracted = res.markdown || res.plainText || '';
             const currentText = activePage?.extractedMarkdown || doc.combinedMarkdown;
-            if (mode === 'replace') {
-              handleContentChange(extractedText);
+            if (insertMode === 'replace') {
+              handleContentChange(extracted);
             } else {
-              handleContentChange(currentText + '\n\n' + extractedText);
+              handleContentChange(currentText + '\n\n' + extracted);
             }
           }}
         />

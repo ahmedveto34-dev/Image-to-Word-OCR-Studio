@@ -21,6 +21,9 @@ import {
   PasscodeLockScreen 
 } from './components/PasscodeLockScreen';
 import { 
+  ApiKeyModal 
+} from './components/ApiKeyModal';
+import { 
   AppTab, 
   DocumentItem, 
   Language 
@@ -47,6 +50,7 @@ export function App() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [activeDocument, setActiveDocument] = useState<DocumentItem | null>(null);
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
   const t = translations[lang];
 
@@ -145,6 +149,7 @@ export function App() {
         activeDocTitle={activeDocument?.title}
         onNewScan={() => handleTabChange('convert')}
         onLockApp={handleLockApp}
+        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
       />
 
       {/* Main Container View */}
@@ -162,6 +167,7 @@ export function App() {
               document={activeDocument}
               onUpdateDocument={handleUpdateDocument}
               lang={lang}
+              onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
             />
           ) : (
             <div className="text-center py-20 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-4 max-w-2xl mx-auto px-6">
@@ -222,6 +228,13 @@ export function App() {
           }}
         />
       )}
+
+      {/* Gemini AI API Key Settings Modal */}
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        lang={lang}
+      />
 
       {/* Clean Luxury Footer */}
       <footer className="border-t border-slate-200/80 bg-white/90 backdrop-blur-sm py-6 mt-12 text-center text-xs text-slate-500">

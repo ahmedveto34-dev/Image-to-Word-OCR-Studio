@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { DocumentItem, DocumentPage, Language, OCRResult } from '../types';
 import { translations } from '../utils/i18n';
+import { processOcrImage } from '../services/ocrService';
 import { 
   getSampleArabicBook, 
   getSampleMathSheet, 
@@ -204,33 +205,21 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               await new Promise((res) => setTimeout(res, 1200 * attempt));
             }
 
-            const response = await fetch('/api/ocr/process', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                imageBase64: base64Data,
-                mimeType: mimeType || 'image/jpeg',
-                options: {
-                  removeWatermarks,
-                  extractMath: detectMath,
-                  extractTables: detectTables,
-                  language: languageMode,
-                  customInstructions,
-                },
-              }),
-            });
+            const resData = await processOcrImage(
+              base64Data,
+              mimeType || 'image/jpeg',
+              {
+                removeWatermarks,
+                extractMath: detectMath,
+                extractTables: detectTables,
+                language: languageMode,
+                customInstructions,
+              }
+            );
 
-            if (!response.ok) {
-              const errData = await response.json().catch(() => ({}));
-              throw new Error(errData.error || `HTTP error ${response.status}`);
-            }
-
-            const resData = await response.json();
-            if (resData.success && resData.data) {
-              ocrResult = resData.data;
+            if (resData) {
+              ocrResult = resData;
               break; // Success!
-            } else {
-              throw new Error(resData.error || 'Invalid OCR response');
             }
           } catch (pageErr: any) {
             lastErrorMsg = pageErr?.message || 'Extraction error';

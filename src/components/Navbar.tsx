@@ -8,7 +8,8 @@ import {
   CloudCheck, 
   Calculator,
   Plus,
-  Lock
+  Lock,
+  Key
 } from 'lucide-react';
 import { Language, AppTab } from '../types';
 import { translations } from '../utils/i18n';
@@ -25,6 +26,7 @@ interface NavbarProps {
   activeDocTitle?: string;
   onNewScan?: () => void;
   onLockApp?: () => void;
+  onOpenApiKeyModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeDocTitle,
   onNewScan,
   onLockApp,
+  onOpenApiKeyModal,
 }) => {
   const t = translations[lang];
 
@@ -177,6 +180,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Globe className="w-3.5 h-3.5 text-sky-600" />
             <span>{t.nav.language}</span>
           </button>
+
+          {/* API Key Settings Button */}
+          {onOpenApiKeyModal && (
+            <button
+              id="btn-api-key-modal"
+              onClick={onOpenApiKeyModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-xs font-bold text-amber-900 transition-all shadow-2xs active:scale-95"
+              title={lang === 'ar' ? 'إعداد مفتاح الذكاء الاصطناعي (Gemini API Key)' : 'Gemini API Key Settings'}
+            >
+              <Key className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline font-mono">{lang === 'ar' ? 'مفتاح API' : 'API Key'}</span>
+            </button>
+          )}
 
           {/* Lock App Button */}
           {onLockApp && (
