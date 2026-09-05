@@ -12,7 +12,6 @@ import {
   Header,
   Footer,
   PageNumber,
-  NumberFormat,
   Packer,
   ShadingType,
 } from 'docx';
@@ -67,45 +66,62 @@ export const THEME_PALETTES = {
 };
 
 /**
- * Parses markdown into docx elements (Paragraphs, Tables, Math blocks)
+ * Checks if a string contains Arabic characters
+ */
+export function isArabicText(text: string): boolean {
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+}
+
+/**
+ * Parses markdown into docx elements with complete fidelity to layout, direction (RTL/LTR),
+ * tables, headers, callouts, lists, formulas, and fonts.
  */
 export async function generateDocxBlob(
   markdownText: string,
   options: DocxExportOptions
 ): Promise<Blob> {
   const palette = THEME_PALETTES[options.themeColor] || THEME_PALETTES.gold;
-  const isRtl = options.rtl;
-  const fontFamily = options.fontFamily || (isRtl ? 'Cairo' : 'Calibri');
+  
+  // Determine RTL: if explicitly provided use it; otherwise auto-detect from content
+  const isRtl = options.rtl !== undefined ? options.rtl : isArabicText(markdownText);
+  const defaultFont = isRtl ? 'Cairo' : 'Calibri';
+  const fontFamily = options.fontFamily || defaultFont;
   const baseSizePt = options.fontSize || 12;
   const halfPoints = baseSizePt * 2; // docx uses half-points (24 = 12pt)
 
   const lines = markdownText.split(/\r?\n/);
   const children: (Paragraph | Table)[] = [];
 
-  // Title page / Top Banner
-  children.push(
-    new Paragraph({
-      alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-      bidirectional: isRtl,
-      spacing: { before: 200, after: 300 },
-      children: [
-        new TextRun({
-          text: options.title || 'مستند مستخرج',
-          bold: true,
-          size: halfPoints + 16, // +8pt
-          color: palette.primary,
-          font: fontFamily,
-        }),
-      ],
-    })
-  );
+  // Title page / Top Document Header Banner
+  if (options.title) {
+    children.push(
+      new Paragraph({
+        alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        bidirectional: isRtl,
+        spacing: { before: 200, after: 160 },
+        border: {
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: palette.border },
+        },
+        children: [
+          new TextRun({
+            text: options.title,
+            bold: true,
+            size: halfPoints + 14, // +7pt
+            color: palette.primary,
+            font: fontFamily,
+            rightToLeft: isRtl,
+          }),
+        ],
+      })
+    );
+  }
 
   if (options.author) {
     children.push(
       new Paragraph({
         alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
         bidirectional: isRtl,
-        spacing: { after: 200 },
+        spacing: { after: 240 },
         children: [
           new TextRun({
             text: `${isRtl ? 'إعداد: ' : 'Author: '} ${options.author}`,
@@ -113,6 +129,7 @@ export async function generateDocxBlob(
             size: halfPoints - 2,
             color: '64748B',
             font: fontFamily,
+            rightToLeft: isRtl,
           }),
         ],
       })
@@ -122,6 +139,7 @@ export async function generateDocxBlob(
   let tableBuffer: string[] = [];
   let inCodeOrMathBlock = false;
   let codeBuffer: string[] = [];
+  let isMathBlock = false;
 
   const flushTableBuffer = () => {
     if (tableBuffer.length > 0) {
@@ -134,32 +152,62 @@ export async function generateDocxBlob(
   const flushCodeBuffer = () => {
     if (codeBuffer.length > 0) {
       const codeText = codeBuffer.join('\n');
-      children.push(
-        new Paragraph({
-          alignment: AlignmentType.LEFT,
-          bidirectional: false,
-          spacing: { before: 100, after: 100 },
-          shading: {
-            type: ShadingType.CLEAR,
-            fill: palette.accent,
-          },
-          border: {
-            left: { style: BorderStyle.SINGLE, size: 12, color: palette.border },
-            right: { style: BorderStyle.SINGLE, size: 12, color: palette.border },
-            top: { style: BorderStyle.SINGLE, size: 12, color: palette.border },
-            bottom: { style: BorderStyle.SINGLE, size: 12, color: palette.border },
-          },
-          children: [
-            new TextRun({
-              text: codeText,
-              font: 'Courier New',
-              size: halfPoints - 2,
-              color: '1E293B',
-            }),
-          ],
-        })
-      );
+      if (isMathBlock) {
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: false,
+            spacing: { before: 140, after: 140 },
+            shading: {
+              type: ShadingType.CLEAR,
+              fill: palette.accent,
+            },
+            border: {
+              left: { style: BorderStyle.SINGLE, size: 8, color: palette.border },
+              right: { style: BorderStyle.SINGLE, size: 8, color: palette.border },
+              top: { style: BorderStyle.SINGLE, size: 8, color: palette.border },
+              bottom: { style: BorderStyle.SINGLE, size: 8, color: palette.border },
+            },
+            children: [
+              new TextRun({
+                text: codeText,
+                bold: true,
+                font: 'Cambria Math',
+                size: halfPoints + 2,
+                color: palette.primary,
+              }),
+            ],
+          })
+        );
+      } else {
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            bidirectional: false,
+            spacing: { before: 120, after: 120 },
+            shading: {
+              type: ShadingType.CLEAR,
+              fill: 'F8FAFC',
+            },
+            border: {
+              left: { style: BorderStyle.SINGLE, size: 10, color: palette.border },
+              right: { style: BorderStyle.SINGLE, size: 6, color: 'E2E8F0' },
+              top: { style: BorderStyle.SINGLE, size: 6, color: 'E2E8F0' },
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E2E8F0' },
+            },
+            children: [
+              new TextRun({
+                text: codeText,
+                font: 'Consolas',
+                size: halfPoints - 2,
+                color: '0F172A',
+              }),
+            ],
+          })
+        );
+      }
       codeBuffer = [];
+      isMathBlock = false;
     }
   };
 
@@ -175,6 +223,7 @@ export async function generateDocxBlob(
       } else {
         flushTableBuffer();
         inCodeOrMathBlock = true;
+        isMathBlock = trimmed.startsWith('$$');
       }
       continue;
     }
@@ -192,32 +241,52 @@ export async function generateDocxBlob(
       flushTableBuffer();
     }
 
-    // Empty line
-    if (!trimmed) {
+    // Page Break or Horizontal Divider detection (e.g., ---, ***, ===)
+    if (/^(\-{3,}|\*{3,}|={3,}|_{3,})$/.test(trimmed)) {
       children.push(
         new Paragraph({
-          spacing: { before: 100, after: 100 },
+          spacing: { before: 200, after: 200 },
+          border: {
+            bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' },
+          },
           children: [new TextRun({ text: '' })],
         })
       );
       continue;
     }
 
-    // Heading 1
+    // Empty line
+    if (!trimmed) {
+      children.push(
+        new Paragraph({
+          spacing: { before: 80, after: 80 },
+          children: [new TextRun({ text: '' })],
+        })
+      );
+      continue;
+    }
+
+    // Determine line direction (if line is Arabic vs English)
+    const lineIsArabic = isArabicText(trimmed);
+    const lineRtl = isRtl || lineIsArabic;
+    const lineAlign = lineRtl ? AlignmentType.RIGHT : AlignmentType.LEFT;
+
+    // Heading 1 (# Heading)
     if (trimmed.startsWith('# ')) {
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
-          alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isRtl,
-          spacing: { before: 240, after: 120 },
+          alignment: lineAlign,
+          bidirectional: lineRtl,
+          spacing: { before: 280, after: 140 },
           children: [
             new TextRun({
               text: trimmed.replace(/^#\s+/, ''),
               bold: true,
-              size: halfPoints + 8,
+              size: halfPoints + 10,
               color: palette.primary,
               font: fontFamily,
+              rightToLeft: lineRtl,
             }),
           ],
         })
@@ -225,21 +294,22 @@ export async function generateDocxBlob(
       continue;
     }
 
-    // Heading 2
+    // Heading 2 (## Heading)
     if (trimmed.startsWith('## ')) {
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
-          alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isRtl,
-          spacing: { before: 200, after: 100 },
+          alignment: lineAlign,
+          bidirectional: lineRtl,
+          spacing: { before: 220, after: 120 },
           children: [
             new TextRun({
               text: trimmed.replace(/^##\s+/, ''),
               bold: true,
-              size: halfPoints + 4,
+              size: halfPoints + 6,
               color: palette.secondary,
               font: fontFamily,
+              rightToLeft: lineRtl,
             }),
           ],
         })
@@ -247,21 +317,22 @@ export async function generateDocxBlob(
       continue;
     }
 
-    // Heading 3
+    // Heading 3 (### Heading)
     if (trimmed.startsWith('### ')) {
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_3,
-          alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isRtl,
-          spacing: { before: 160, after: 80 },
+          alignment: lineAlign,
+          bidirectional: lineRtl,
+          spacing: { before: 180, after: 100 },
           children: [
             new TextRun({
               text: trimmed.replace(/^###\s+/, ''),
               bold: true,
-              size: halfPoints + 2,
+              size: halfPoints + 3,
               color: palette.secondary,
               font: fontFamily,
+              rightToLeft: lineRtl,
             }),
           ],
         })
@@ -269,10 +340,82 @@ export async function generateDocxBlob(
       continue;
     }
 
-    // Math block or arithmetic callout detection
+    // Heading 4 (#### Heading)
+    if (trimmed.startsWith('#### ')) {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_4,
+          alignment: lineAlign,
+          bidirectional: lineRtl,
+          spacing: { before: 140, after: 80 },
+          children: [
+            new TextRun({
+              text: trimmed.replace(/^####\s+/, ''),
+              bold: true,
+              size: halfPoints + 1,
+              color: palette.primary,
+              font: fontFamily,
+              rightToLeft: lineRtl,
+            }),
+          ],
+        })
+      );
+      continue;
+    }
+
+    // Blockquote / Callout Note (> Text)
+    if (trimmed.startsWith('>')) {
+      const quoteText = trimmed.replace(/^>\s*/, '');
+      const quoteBorder = lineRtl
+        ? { right: { style: BorderStyle.SINGLE, size: 16, color: palette.border } }
+        : { left: { style: BorderStyle.SINGLE, size: 16, color: palette.border } };
+
+      children.push(
+        new Paragraph({
+          alignment: lineAlign,
+          bidirectional: lineRtl,
+          spacing: { before: 120, after: 120 },
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: palette.accent,
+          },
+          border: quoteBorder,
+          children: parseInlineFormatting(quoteText, fontFamily, halfPoints, '334155', lineRtl),
+        })
+      );
+      continue;
+    }
+
+    // Checklist / Task item (- [x] or - [ ])
+    if (/^[\-\*]\s+\[([ xX])\]\s+(.*)$/.test(trimmed)) {
+      const match = trimmed.match(/^[\-\*]\s+\[([ xX])\]\s+(.*)$/);
+      const isChecked = match && (match[1] === 'x' || match[1] === 'X');
+      const itemText = match ? match[2] : trimmed;
+      
+      children.push(
+        new Paragraph({
+          alignment: lineAlign,
+          bidirectional: lineRtl,
+          spacing: { before: 40, after: 40 },
+          children: [
+            new TextRun({
+              text: isChecked ? '☑ ' : '☐ ',
+              bold: true,
+              color: isChecked ? palette.primary : '64748B',
+              size: halfPoints + 2,
+              font: 'Arial',
+            }),
+            ...parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B', lineRtl),
+          ],
+        })
+      );
+      continue;
+    }
+
+    // Standalone Math / Equation line (e.g. formula with math symbols)
     if (
       options.highlightMath &&
-      (trimmed.includes('=') && /[\+\-\*\/×÷√∑∫\^]/.test(trimmed) && trimmed.length < 120)
+      (trimmed.includes('=') && /[\+\-\*\/×÷√∑∫\^≤≥≠≈πθλ]/.test(trimmed) && trimmed.length < 140)
     ) {
       children.push(
         new Paragraph({
@@ -293,7 +436,7 @@ export async function generateDocxBlob(
             new TextRun({
               text: trimmed,
               bold: true,
-              font: 'JetBrains Mono',
+              font: 'Cambria Math',
               size: halfPoints + 2,
               color: palette.primary,
             }),
@@ -303,30 +446,30 @@ export async function generateDocxBlob(
       continue;
     }
 
-    // Bullet points
+    // Bullet points (- or *)
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       const itemText = trimmed.replace(/^[\-\*]\s+/, '');
       children.push(
         new Paragraph({
           bullet: { level: 0 },
-          alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isRtl,
+          alignment: lineAlign,
+          bidirectional: lineRtl,
           spacing: { before: 40, after: 40 },
-          children: parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B'),
+          children: parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B', lineRtl),
         })
       );
       continue;
     }
 
-    // Numbered list
+    // Numbered list (1. or 1))
     if (/^\d+[\.\)]\s+/.test(trimmed)) {
       const match = trimmed.match(/^(\d+[\.\)])\s+(.*)$/);
       const prefix = match ? match[1] : '';
       const text = match ? match[2] : trimmed;
       children.push(
         new Paragraph({
-          alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          bidirectional: isRtl,
+          alignment: lineAlign,
+          bidirectional: lineRtl,
           spacing: { before: 40, after: 40 },
           children: [
             new TextRun({
@@ -335,21 +478,22 @@ export async function generateDocxBlob(
               color: palette.primary,
               font: fontFamily,
               size: halfPoints,
+              rightToLeft: lineRtl,
             }),
-            ...parseInlineFormatting(text, fontFamily, halfPoints, '1E293B'),
+            ...parseInlineFormatting(text, fontFamily, halfPoints, '1E293B', lineRtl),
           ],
         })
       );
       continue;
     }
 
-    // Regular Paragraph with inline bold/italic
+    // Regular Paragraph with inline bold/italic/underline/strikethrough/code
     children.push(
       new Paragraph({
-        alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-        bidirectional: isRtl,
+        alignment: lineAlign,
+        bidirectional: lineRtl,
         spacing: { before: 60, after: 60, line: 360 }, // 1.5 line spacing
-        children: parseInlineFormatting(rawLine, fontFamily, halfPoints, '1E293B'),
+        children: parseInlineFormatting(rawLine, fontFamily, halfPoints, '1E293B', lineRtl),
       })
     );
   }
@@ -357,7 +501,7 @@ export async function generateDocxBlob(
   flushTableBuffer();
   flushCodeBuffer();
 
-  // Create complete Document with Header, Footer, and RTL configuration
+  // Create complete Document with Header, Footer, and RTL/LTR configuration
   const doc = new Document({
     sections: [
       {
@@ -376,14 +520,26 @@ export async function generateDocxBlob(
               default: new Header({
                 children: [
                   new Paragraph({
-                    alignment: isRtl ? AlignmentType.LEFT : AlignmentType.RIGHT,
+                    alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
                     bidirectional: isRtl,
+                    border: {
+                      bottom: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+                    },
+                    spacing: { after: 120 },
                     children: [
                       new TextRun({
-                        text: options.headerText || options.title || 'محول الصور إلى وورد الذكي',
-                        size: 18,
+                        text: options.headerText || options.title || (isRtl ? 'محول الصور إلى وورد الذكي' : 'OCR Smart Document'),
+                        size: 16,
                         color: '94A3B8',
                         font: fontFamily,
+                        rightToLeft: isRtl,
+                      }),
+                      new TextRun({
+                        text: isRtl ? '  |  إعداد: MR:Waheed' : '  |  Prepared by MR:Waheed',
+                        size: 15,
+                        color: 'CBD5E1',
+                        font: fontFamily,
+                        rightToLeft: isRtl,
                       }),
                     ],
                   }),
@@ -397,14 +553,23 @@ export async function generateDocxBlob(
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        children: ['صفحة ', PageNumber.CURRENT, ' من ', PageNumber.TOTAL_PAGES],
-                        size: 18,
-                        color: '94A3B8',
-                        font: fontFamily,
-                      }),
-                    ],
+                    border: {
+                      top: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' },
+                    },
+                    spacing: { before: 120 },
+                    children: isRtl
+                      ? [
+                          new TextRun({ text: 'صفحة ', size: 16, color: '94A3B8', font: fontFamily, rightToLeft: true }),
+                          new TextRun({ children: [PageNumber.CURRENT], size: 16, color: palette.primary, bold: true, font: fontFamily }),
+                          new TextRun({ text: ' من ', size: 16, color: '94A3B8', font: fontFamily, rightToLeft: true }),
+                          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '94A3B8', font: fontFamily }),
+                        ]
+                      : [
+                          new TextRun({ text: 'Page ', size: 16, color: '94A3B8', font: fontFamily }),
+                          new TextRun({ children: [PageNumber.CURRENT], size: 16, color: palette.primary, bold: true, font: fontFamily }),
+                          new TextRun({ text: ' of ', size: 16, color: '94A3B8', font: fontFamily }),
+                          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '94A3B8', font: fontFamily }),
+                        ],
                   }),
                 ],
               }),
@@ -419,17 +584,18 @@ export async function generateDocxBlob(
 }
 
 /**
- * Parses inline bold, italic, inline code in a text line
+ * Parses inline bold, italic, code, underline, strikethrough in a text line
  */
 function parseInlineFormatting(
   text: string,
   fontFamily: string,
   halfPoints: number,
-  color: string
+  color: string,
+  isRtl: boolean
 ): TextRun[] {
   const runs: TextRun[] = [];
-  // Tokenize **bold**, *italic*, `code`, etc.
-  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`|[^\*`]+)/g;
+  // Tokenize **bold**, *italic*, `code`, ~~strike~~, <u>underline</u>, etc.
+  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`|~~.*?~~|<u>.*?<\/u>|==.*?==|[^\*`~<=\n]+|<[^>]+>)/g;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
@@ -442,6 +608,7 @@ function parseInlineFormatting(
           font: fontFamily,
           size: halfPoints,
           color,
+          rightToLeft: isRtl,
         })
       );
     } else if (chunk.startsWith('*') && chunk.endsWith('*') && chunk.length >= 2) {
@@ -452,15 +619,57 @@ function parseInlineFormatting(
           font: fontFamily,
           size: halfPoints,
           color,
+          rightToLeft: isRtl,
+        })
+      );
+    } else if (chunk.startsWith('~~') && chunk.endsWith('~~') && chunk.length >= 4) {
+      runs.push(
+        new TextRun({
+          text: chunk.slice(2, -2),
+          strike: true,
+          font: fontFamily,
+          size: halfPoints,
+          color: '94A3B8',
+          rightToLeft: isRtl,
+        })
+      );
+    } else if (chunk.startsWith('<u>') && chunk.endsWith('</u>')) {
+      runs.push(
+        new TextRun({
+          text: chunk.slice(3, -4),
+          underline: {},
+          font: fontFamily,
+          size: halfPoints,
+          color,
+          rightToLeft: isRtl,
+        })
+      );
+    } else if (chunk.startsWith('==') && chunk.endsWith('==') && chunk.length >= 4) {
+      runs.push(
+        new TextRun({
+          text: chunk.slice(2, -2),
+          bold: true,
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: 'FEF08A', // Yellow highlight
+          },
+          font: fontFamily,
+          size: halfPoints,
+          color: '854D0E',
+          rightToLeft: isRtl,
         })
       );
     } else if (chunk.startsWith('`') && chunk.endsWith('`') && chunk.length >= 2) {
       runs.push(
         new TextRun({
           text: chunk.slice(1, -1),
-          font: 'JetBrains Mono',
+          font: 'Consolas',
           size: halfPoints - 2,
           color: 'B45309',
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: 'F1F5F9',
+          },
         })
       );
     } else {
@@ -470,16 +679,19 @@ function parseInlineFormatting(
           font: fontFamily,
           size: halfPoints,
           color,
+          rightToLeft: isRtl,
         })
       );
     }
   }
 
-  return runs.length > 0 ? runs : [new TextRun({ text, font: fontFamily, size: halfPoints, color })];
+  return runs.length > 0
+    ? runs
+    : [new TextRun({ text, font: fontFamily, size: halfPoints, color, rightToLeft: isRtl })];
 }
 
 /**
- * Builds a styled docx Table from Markdown table lines
+ * Builds a styled docx Table from Markdown table lines with RTL/LTR precision
  */
 function createDocxTable(
   lines: string[],
@@ -510,6 +722,10 @@ function createDocxTable(
   parsedRows.forEach((rowCells, rowIndex) => {
     const isHeader = rowIndex === 0;
     const tableCells = rowCells.map(cellText => {
+      const cellIsArabic = isArabicText(cellText);
+      const cellRtl = isRtl || cellIsArabic;
+      const cellAlign = cellRtl ? AlignmentType.RIGHT : AlignmentType.LEFT;
+
       return new TableCell({
         width: { size: Math.floor(9000 / rowCells.length), type: WidthType.DXA },
         shading: {
@@ -517,21 +733,21 @@ function createDocxTable(
           fill: isHeader ? palette.tableHeader : rowIndex % 2 === 0 ? palette.zebraLight : 'FFFFFF',
         },
         margins: {
-          top: 120,
-          bottom: 120,
-          left: 140,
-          right: 140,
+          top: 140,
+          bottom: 140,
+          left: 160,
+          right: 160,
         },
         borders: {
-          top: { style: BorderStyle.SINGLE, size: 4, color: palette.border },
-          bottom: { style: BorderStyle.SINGLE, size: 4, color: palette.border },
-          left: { style: BorderStyle.SINGLE, size: 4, color: palette.border },
-          right: { style: BorderStyle.SINGLE, size: 4, color: palette.border },
+          top: { style: BorderStyle.SINGLE, size: 6, color: palette.border },
+          bottom: { style: BorderStyle.SINGLE, size: 6, color: palette.border },
+          left: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
+          right: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
         },
         children: [
           new Paragraph({
-            alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
-            bidirectional: isRtl,
+            alignment: cellAlign,
+            bidirectional: cellRtl,
             children: [
               new TextRun({
                 text: cellText,
@@ -539,6 +755,7 @@ function createDocxTable(
                 font: fontFamily,
                 size: isHeader ? halfPoints : halfPoints - 2,
                 color: isHeader ? palette.tableHeaderText : '1E293B',
+                rightToLeft: cellRtl,
               }),
             ],
           }),
@@ -556,7 +773,8 @@ function createDocxTable(
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    alignment: AlignmentType.CENTER,
+    alignment: isRtl ? AlignmentType.RIGHT : AlignmentType.LEFT,
     rows,
   });
 }
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Download, 
   FileText, 
@@ -12,11 +12,14 @@ import {
   Printer,
   Presentation,
   Layout,
-  FileSpreadsheet
+  FileSpreadsheet,
+  AlignRight,
+  AlignLeft,
+  ArrowRightLeft
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DocxExportOptions, Language } from '../types';
-import { generateDocxBlob } from '../utils/docxExport';
+import { generateDocxBlob, isArabicText } from '../utils/docxExport';
 import { exportToPowerPoint } from '../services/pptxExporter';
 import { translations } from '../utils/i18n';
 
@@ -41,18 +44,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'docx' | 'pptx' | 'pdf'>('docx');
 
+  const contentIsArabic = isArabicText(markdownContent || documentTitle);
+  const initialRtl = lang === 'ar' || contentIsArabic;
+
   const [options, setOptions] = useState<DocxExportOptions>({
-    title: documentTitle || (lang === 'ar' ? 'مستند وورد منسق' : 'Formatted Word Document'),
+    title: documentTitle || (initialRtl ? 'مستند وورد منسق' : 'Formatted Word Document'),
     author: '',
     fontSize: 12,
-    fontFamily: lang === 'ar' ? 'Cairo' : 'Calibri',
+    fontFamily: initialRtl ? 'Cairo' : 'Calibri',
     lineSpacing: 1.5,
     includePageNumbers: true,
     includeTableOfContents: false,
     includeHeaderFooter: true,
-    headerText: documentTitle || 'محول الصور إلى وورد الذكي',
+    headerText: documentTitle || (initialRtl ? 'محول الصور إلى وورد الذكي' : 'Smart OCR to Word'),
     themeColor: 'gold',
-    rtl: lang === 'ar',
+    rtl: initialRtl,
     highlightMath: true,
   });
 
@@ -64,14 +70,36 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     author: string;
     splitBy: 'heading' | 'page' | 'auto';
   }>({
-    title: documentTitle || (lang === 'ar' ? 'عرض تقديمي مصور' : 'Slide Presentation'),
+    title: documentTitle || (initialRtl ? 'عرض تقديمي مصور' : 'Slide Presentation'),
     theme: 'luxury',
-    fontFace: lang === 'ar' ? 'Cairo' : 'Arial',
-    author: 'Image to Word OCR Studio',
+    fontFace: initialRtl ? 'Cairo' : 'Arial',
+    author: 'MR:Waheed OCR Studio',
     splitBy: 'heading',
   });
 
   const [isExporting, setIsExporting] = useState(false);
+
+  // Sync state if modal opens with different document
+  useEffect(() => {
+    if (isOpen) {
+      const isAr = isArabicText(markdownContent || documentTitle) || lang === 'ar';
+      setOptions(prev => ({
+        ...prev,
+        title: documentTitle || (isAr ? 'مستند وورد منسق' : 'Formatted Word Document'),
+        headerText: documentTitle || (isAr ? 'محول الصور إلى وورد الذكي' : 'Smart OCR to Word'),
+        rtl: isAr,
+        fontFamily: isAr ? 'Cairo' : 'Calibri',
+      }));
+    }
+  }, [isOpen, documentTitle, markdownContent, lang]);
+
+  const toggleDirection = (newRtl: boolean) => {
+    setOptions(prev => ({
+      ...prev,
+      rtl: newRtl,
+      fontFamily: newRtl ? (prev.fontFamily === 'Calibri' || prev.fontFamily === 'Times New Roman' ? 'Cairo' : prev.fontFamily) : (prev.fontFamily === 'Cairo' || prev.fontFamily === 'Amiri' ? 'Calibri' : prev.fontFamily),
+    }));
+  };
 
   if (!isOpen) return null;
 
@@ -303,6 +331,46 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           ) : (
             /* Word Configuration */
             <>
+          {/* Document Direction & Language Mode Selection */}
+          <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200">
+            <label className="text-xs font-bold text-blue-950 block mb-2 font-cairo flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <ArrowRightLeft className="w-4 h-4 text-blue-700" />
+                {lang === 'ar' ? 'اتجاه ولغة المستند الأساسي:' : 'Document Direction & Primary Language:'}
+              </span>
+              <span className="text-[11px] font-medium text-blue-800 bg-blue-100/90 px-2.5 py-0.5 rounded-full border border-blue-300">
+                {options.rtl ? (lang === 'ar' ? 'يبدأ من اليمين (RTL)' : 'Starts from Right (RTL)') : (lang === 'ar' ? 'يبدأ من اليسار (LTR)' : 'Starts from Left (LTR)')}
+              </span>
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => toggleDirection(true)}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  options.rtl
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <AlignRight className="w-4 h-4" />
+                <span>{lang === 'ar' ? 'لغة عربية (من اليمين RTL)' : 'Arabic (Right-to-Left RTL)'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleDirection(false)}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  !options.rtl
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <AlignLeft className="w-4 h-4" />
+                <span>{lang === 'ar' ? 'لغة إنجليزية (من اليسار LTR)' : 'English (Left-to-Right LTR)'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Quick Document Style Presets */}
           <div>
             <label className="text-xs font-bold text-gray-800 block mb-2 font-cairo flex items-center justify-between">
@@ -316,10 +384,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {
                   id: 'academic',
                   name: lang === 'ar' ? 'بحث أكاديمي' : 'Academic',
-                  desc: 'Amiri / Times',
+                  desc: options.rtl ? 'Amiri / كحلي' : 'Times / Navy',
                   apply: () => setOptions(prev => ({
                     ...prev,
-                    fontFamily: lang === 'ar' ? 'Amiri' : 'Times New Roman',
+                    fontFamily: prev.rtl ? 'Amiri' : 'Times New Roman',
                     fontSize: 12,
                     themeColor: 'navy',
                     lineSpacing: 1.5,
@@ -331,10 +399,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {
                   id: 'financial',
                   name: lang === 'ar' ? 'تقرير مالي وفاتورة' : 'Financial',
-                  desc: 'Cairo / Emerald',
+                  desc: options.rtl ? 'Cairo / زمردي' : 'Calibri / Emerald',
                   apply: () => setOptions(prev => ({
                     ...prev,
-                    fontFamily: 'Cairo',
+                    fontFamily: prev.rtl ? 'Cairo' : 'Calibri',
                     fontSize: 11,
                     themeColor: 'emerald',
                     lineSpacing: 1.15,
@@ -346,10 +414,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {
                   id: 'summary',
                   name: lang === 'ar' ? 'مذكرة وملخص' : 'Study Notes',
-                  desc: 'Cairo / Amber',
+                  desc: options.rtl ? 'Cairo / ذهبي' : 'Calibri / Gold',
                   apply: () => setOptions(prev => ({
                     ...prev,
-                    fontFamily: 'Cairo',
+                    fontFamily: prev.rtl ? 'Cairo' : 'Calibri',
                     fontSize: 12,
                     themeColor: 'gold',
                     lineSpacing: 1.5,
@@ -361,10 +429,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {
                   id: 'legal',
                   name: lang === 'ar' ? 'عقد ووثيقة رسمية' : 'Legal & Formal',
-                  desc: 'Amiri / Slate',
+                  desc: options.rtl ? 'Amiri / رسمي' : 'Arial / Slate',
                   apply: () => setOptions(prev => ({
                     ...prev,
-                    fontFamily: lang === 'ar' ? 'Amiri' : 'Arial',
+                    fontFamily: prev.rtl ? 'Amiri' : 'Arial',
                     fontSize: 12,
                     themeColor: 'slate',
                     lineSpacing: 1.5,
@@ -376,10 +444,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {
                   id: 'modern',
                   name: lang === 'ar' ? 'عصري حديث' : 'Modern Clean',
-                  desc: 'Cairo / Crimson',
+                  desc: options.rtl ? 'Cairo / قرمزي' : 'Calibri / Crimson',
                   apply: () => setOptions(prev => ({
                     ...prev,
-                    fontFamily: 'Cairo',
+                    fontFamily: prev.rtl ? 'Cairo' : 'Calibri',
                     fontSize: 12,
                     themeColor: 'crimson',
                     lineSpacing: 1.5,
@@ -473,11 +541,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 onChange={e => setOptions(prev => ({ ...prev, fontFamily: e.target.value as any }))}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-900 outline-hidden focus:border-gray-900 focus:bg-white"
               >
-                <option value="Cairo">Cairo (خط حديث للغة العربية)</option>
-                <option value="Amiri">Amiri (خط كلاسيكي تراثي)</option>
-                <option value="Calibri">Calibri (الافتراضي لمايكروسوفت)</option>
-                <option value="Arial">Arial (خط قياسي متوافق)</option>
-                <option value="Times New Roman">Times New Roman (أكاديمي)</option>
+                {options.rtl ? (
+                  <>
+                    <option value="Cairo">Cairo (خط عصري واضح ومقروء - مستحسن)</option>
+                    <option value="Amiri">Amiri (خط نسخي كلاسيكي للأبحاث والعقود)</option>
+                    <option value="Arial">Arial (خط قياسي متوافق عالمياً)</option>
+                    <option value="Tahoma">Tahoma (خط بسيط للبيانات والجداول)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Calibri">Calibri (الافتراضي لمايكروسوفت وورد)</option>
+                    <option value="Arial">Arial (خط قياسي متوافق)</option>
+                    <option value="Times New Roman">Times New Roman (أكاديمي ورسمي)</option>
+                    <option value="Cairo">Cairo (خط عصري)</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -527,16 +605,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 accent-gray-900 w-4 h-4"
               />
               <span>{t.exportModal.highlightMath}</span>
-            </label>
-
-            <label className="flex items-center gap-3 text-xs text-gray-800 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={options.rtl}
-                onChange={e => setOptions(prev => ({ ...prev, rtl: e.target.checked }))}
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 accent-gray-900 w-4 h-4"
-              />
-              <span>{lang === 'ar' ? 'تفعيل محاذاة واتجاه النص من اليمين لليسار (RTL)' : 'Right-to-Left (RTL) Layout for Arabic'}</span>
             </label>
           </div>
           </>
