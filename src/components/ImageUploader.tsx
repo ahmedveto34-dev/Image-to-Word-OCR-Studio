@@ -333,9 +333,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-sm">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-bold mb-3 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>{t.hero.tag}</span>
+          <div className="flex flex-wrap items-center gap-2.5 mb-3.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-bold shadow-2xs">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>{t.hero.tag}</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-slate-950 border border-amber-400/50 text-amber-300 text-sm font-black font-mono shadow-md shadow-amber-500/10">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Prepared by MR:Waheed</span>
+            </div>
           </div>
 
           <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight font-cairo mb-3">

@@ -81,8 +81,8 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
       setShake(true);
       setErrorMessage(
         isAr 
-          ? 'الرمز السري غير صحيح، يرجى إدخال الرمز الصحيح (2008)' 
-          : 'Incorrect passcode, please try again (2008)'
+          ? 'الرمز السري غير صحيح، يرجى المحاولة مرة أخرى' 
+          : 'Incorrect passcode, please try again'
       );
       setTimeout(() => setShake(false), 500);
       setTimeout(() => {
@@ -143,7 +143,7 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#070B14] text-slate-100 font-cairo overflow-hidden select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-[#071329] via-[#0d2146] to-[#081836] text-slate-100 font-cairo overflow-y-auto p-2 sm:p-4 select-none relative"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
@@ -164,26 +164,22 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
         autoFocus
       />
 
-      {/* Luxury Ambient Background Glows */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-amber-500/5 via-transparent to-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+      {/* Luxury Royal Blue Ambient Lighting & Glows on both sides */}
+      <div className="absolute -top-32 -left-32 w-[450px] h-[450px] bg-blue-600/30 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-[450px] h-[450px] bg-indigo-600/30 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/2 -left-48 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-500/20 rounded-full blur-[130px] pointer-events-none" />
+      <div className="absolute top-1/2 -right-48 -translate-y-1/2 w-[400px] h-[400px] bg-blue-500/20 rounded-full blur-[130px] pointer-events-none" />
+      <div className="absolute inset-0 bg-radial from-blue-500/10 via-transparent to-transparent pointer-events-none" />
       
-      {/* Subtle Pattern Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+      {/* Subtle Luxury Pattern Grid with Royal Blue Tint */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#3b82f618_1px,transparent_1px),linear-gradient(to_bottom,#3b82f618_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_50%,#000_80%,transparent_100%)] pointer-events-none" />
 
-      {/* Main Luxury Lock Card */}
-      <div className="relative w-full max-w-md mx-4 p-6 sm:p-8 rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center text-center">
+      {/* Main Luxury Lock Card - Compact & Screen-Fitted */}
+      <div className="relative w-full max-w-sm my-auto p-4 sm:p-5 rounded-3xl bg-slate-950/85 backdrop-blur-2xl border border-blue-500/30 shadow-[0_20px_60px_rgba(3,15,38,0.85)] ring-1 ring-blue-400/20 flex flex-col items-center text-center">
         
-        {/* Top Gold Badge */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-bold tracking-wider uppercase mb-5 shadow-xs">
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-          <span>{isAr ? 'منظومة الدخول الآمنة' : 'Secure VIP Gateway'}</span>
-        </div>
-
         {/* Brand Crest / Icon with unlock transition */}
-        <div className="relative mb-4 group cursor-pointer" onClick={() => inputRef.current?.focus()}>
-          <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-xl border ${
+        <div className="relative mb-2 group cursor-pointer" onClick={() => inputRef.current?.focus()}>
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg border ${
             isSuccess 
               ? 'bg-gradient-to-br from-emerald-600 to-teal-700 border-emerald-400 text-white scale-105 shadow-emerald-500/30' 
               : error
@@ -191,35 +187,43 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
               : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 border-amber-500/40 text-amber-400 shadow-amber-500/10'
           }`}>
             {isSuccess ? (
-              <Unlock className="w-9 h-9 animate-bounce text-emerald-200" />
+              <Unlock className="w-6 h-6 animate-bounce text-emerald-200" />
             ) : error ? (
-              <AlertCircle className="w-9 h-9 animate-pulse text-rose-400" />
+              <AlertCircle className="w-6 h-6 animate-pulse text-rose-400" />
             ) : (
-              <Lock className="w-9 h-9 text-amber-400 drop-shadow-[0_2px_10px_rgba(245,158,11,0.4)]" />
+              <Lock className="w-6 h-6 text-amber-400 drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]" />
             )}
           </div>
           
-          {/* Subtle status dot */}
-          <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
+          <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
             isSuccess ? 'bg-emerald-400 animate-ping' : 'bg-amber-500'
           }`} />
         </div>
 
         {/* App Title & Subtitle */}
-        <h1 className="text-2xl sm:text-3xl font-black text-white font-cairo tracking-wide mb-1 flex items-center justify-center gap-2">
-          <span>TAHWEEL</span>
-          <span className="text-xs px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <h1 className="text-xl sm:text-2xl font-black text-white font-cairo tracking-wide">
+            TAHWEEL
+          </h1>
+          <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/50 font-mono font-black">
             PRO
           </span>
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-xs mb-6">
+        </div>
+
+        {/* Prepared by MR:Waheed Prominent Badge - Large, Bold & Clear */}
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/20 border border-amber-400/70 text-amber-300 text-xs sm:text-sm font-black tracking-wide font-mono mb-2 shadow-xs">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>Prepared by MR:Waheed</span>
+        </div>
+
+        <p className="text-[11px] sm:text-xs text-slate-400 max-w-xs mb-3 font-medium">
           {isAr 
             ? 'يرجى إدخال الرمز السري للوصول إلى استوديو التحويل' 
             : 'Enter your 4-digit security PIN to access the OCR studio'}
         </p>
 
         {/* PIN Indicators */}
-        <div className={`flex items-center justify-center gap-3.5 mb-5 transition-transform ${
+        <div className={`flex items-center justify-center gap-2.5 mb-2.5 transition-transform ${
           shake ? 'animate-[shake_0.4s_ease-in-out]' : ''
         }`}>
           {[0, 1, 2, 3].map((index) => {
@@ -228,22 +232,22 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             return (
               <div
                 key={index}
-                className={`w-12 h-14 rounded-2xl flex items-center justify-center text-xl font-bold font-mono transition-all duration-200 border-2 ${
+                className={`w-10 h-11 rounded-xl flex items-center justify-center text-lg font-bold font-mono transition-all duration-150 border-2 ${
                   isSuccess
-                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
                     : error
                     ? 'border-rose-500 bg-rose-500/10 text-rose-400'
                     : isFilled
-                    ? 'border-amber-400 bg-amber-400/10 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)] scale-105'
+                    ? 'border-amber-400 bg-amber-400/10 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)] scale-105'
                     : 'border-slate-700 bg-slate-800/60 text-slate-500'
                 }`}
               >
                 {isFilled ? (
                   showPin ? currentDigit : (
-                    <span className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
                   )
                 ) : (
-                  <span className="w-2 h-2 rounded-full bg-slate-700" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
                 )}
               </div>
             );
@@ -251,14 +255,14 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
         </div>
 
         {/* Error / Feedback Message */}
-        <div className="h-6 mb-4 flex items-center justify-center">
+        <div className="h-5 mb-2 flex items-center justify-center">
           {errorMessage ? (
-            <span className="text-xs font-bold text-rose-400 flex items-center gap-1.5 animate-in fade-in duration-200">
+            <span className="text-[11px] font-bold text-rose-400 flex items-center gap-1 animate-in fade-in duration-150">
               <AlertCircle className="w-3.5 h-3.5" />
               <span>{errorMessage}</span>
             </span>
           ) : isSuccess ? (
-            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 animate-in fade-in duration-200">
+            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 animate-in fade-in duration-150">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>{isAr ? 'تم التحقق بنجاح! جارٍ الدخول...' : 'Passcode verified! Unlocking...'}</span>
             </span>
@@ -266,29 +270,29 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             <button
               type="button"
               onClick={() => setShowPin(!showPin)}
-              className="text-[11px] text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
+              className="text-[10px] text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
             >
-              {showPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               <span>{showPin ? (isAr ? 'إخفاء الأرقام' : 'Hide digits') : (isAr ? 'إظهار الأرقام' : 'Show digits')}</span>
             </button>
           )}
         </div>
 
-        {/* Luxury Keypad */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full max-w-[280px]">
+        {/* Luxury Keypad - Compact & 100% visible on all viewports */}
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full max-w-[240px]">
           {keypadNumbers.map(({ num, sub }) => (
             <button
               key={num}
               type="button"
               onClick={() => handleKeyPress(num)}
               disabled={isSuccess}
-              className="h-14 sm:h-16 rounded-2xl bg-slate-800/70 hover:bg-slate-700/80 active:bg-amber-500/20 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-150 active:scale-95 shadow-sm group cursor-pointer"
+              className="h-10 sm:h-11 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500/25 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-100 active:scale-95 shadow-xs group cursor-pointer"
             >
-              <span className="text-lg sm:text-xl font-black font-mono group-hover:text-amber-400 transition-colors">
+              <span className="text-base sm:text-lg font-black font-mono group-hover:text-amber-400 transition-colors leading-none">
                 {num}
               </span>
               {sub && (
-                <span className="text-[9px] text-slate-400 font-mono tracking-widest uppercase -mt-0.5">
+                <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase">
                   {sub}
                 </span>
               )}
@@ -300,7 +304,7 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             type="button"
             onClick={handleClear}
             disabled={isSuccess || pin.length === 0}
-            className="h-14 sm:h-16 rounded-2xl bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-slate-800 text-xs font-bold transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
+            className="h-10 sm:h-11 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 text-[11px] font-bold transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
           >
             {isAr ? 'مسح' : 'Clear'}
           </button>
@@ -310,12 +314,12 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             type="button"
             onClick={() => handleKeyPress('0')}
             disabled={isSuccess}
-            className="h-14 sm:h-16 rounded-2xl bg-slate-800/70 hover:bg-slate-700/80 active:bg-amber-500/20 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-150 active:scale-95 shadow-sm group cursor-pointer"
+            className="h-10 sm:h-11 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500/25 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-100 active:scale-95 shadow-xs group cursor-pointer"
           >
-            <span className="text-lg sm:text-xl font-black font-mono group-hover:text-amber-400 transition-colors">
+            <span className="text-base sm:text-lg font-black font-mono group-hover:text-amber-400 transition-colors leading-none">
               0
             </span>
-            <span className="text-[9px] text-slate-400 font-mono tracking-widest uppercase -mt-0.5">
+            <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase">
               +
             </span>
           </button>
@@ -325,20 +329,20 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             type="button"
             onClick={handleDelete}
             disabled={isSuccess || pin.length === 0}
-            className="h-14 sm:h-16 rounded-2xl bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 hover:text-rose-400 border border-slate-800 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
+            className="h-10 sm:h-11 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
             title={isAr ? 'حذف رقم' : 'Backspace'}
           >
-            <Delete className="w-5 h-5" />
+            <Delete className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Bottom Hint / Info */}
-        <div className="mt-6 pt-4 border-t border-slate-800/60 w-full flex items-center justify-between text-[11px] text-slate-400">
-          <span className="flex items-center gap-1 text-amber-400 font-mono">
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>PIN: 2008</span>
+        {/* Bottom Hint / Info Bar without exposing PIN */}
+        <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 w-full flex items-center justify-between text-[11px] text-slate-400">
+          <span className="flex items-center gap-1 text-slate-400 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+            <span>{isAr ? 'وصول مشفر وآمن' : 'Encrypted Access'}</span>
           </span>
-          <span>TAHWEEL VIP Enterprise</span>
+          <span className="font-mono text-amber-300 font-bold text-[11px]">MR:Waheed</span>
         </div>
 
       </div>
@@ -347,8 +351,8 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
-          20%, 60% { transform: translateX(-8px); }
-          40%, 80% { transform: translateX(8px); }
+          20%, 60% { transform: translateX(-6px); }
+          40%, 80% { transform: translateX(6px); }
         }
       `}</style>
     </div>
