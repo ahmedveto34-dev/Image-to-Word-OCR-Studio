@@ -169,6 +169,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       let combinedMarkdown = '';
       let detectedMathList: string[] = [];
       let totalWordCount = 0;
+      let combinedDrawings: Record<string, string> = {};
       let totalCharCount = 0;
       let totalTables = 0;
       let mainTitle = '';
@@ -266,8 +267,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           readingDirection: ocrResult.readingDirection || 'rtl',
           status: 'completed',
           detectedElements: ocrResult.detectedElements,
+          drawings: ocrResult.drawings,
         });
 
+        if (ocrResult.drawings) {
+          Object.assign(combinedDrawings, ocrResult.drawings);
+        }
         if (ocrResult.markdown) {
           if (combinedMarkdown) combinedMarkdown += `\n\n---\n\n## ${lang === 'ar' ? 'الصفحة' : 'Page'} ${i + 1}\n\n`;
           combinedMarkdown += ocrResult.markdown;
@@ -293,6 +298,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         description: pages[0]?.detectedElements?.watermarksDetectedAndFiltered
           ? (lang === 'ar' ? 'تم استخراج النص وتنقية العلامات المائية بنجاح' : 'Text extracted and watermarks filtered successfully')
           : undefined,
+        drawings: combinedDrawings,
         category: selectedFiles.length > 2 ? 'books' : detectMath && detectedMathList.length > 0 ? 'math' : 'documents',
         tags: [primaryLanguage === 'ar' ? 'عربي' : 'English', 'OCR-PRO', 'Word-DOCX'],
         pages,

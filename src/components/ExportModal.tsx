@@ -108,7 +108,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleDownloadDocx = async () => {
     setIsExporting(true);
     try {
-      const exportOpts = { ...options, pages: docItem?.pages };
+      const exportOpts = { ...options, pages: docItem?.pages, drawings: docItem?.drawings };
       const blob = await generateDocxBlob(markdownContent, exportOpts);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -148,6 +148,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         author: pptxOptions.author,
         splitBy: pptxOptions.splitBy,
         readingDirection: lang === 'ar' ? 'rtl' : 'ltr',
+        drawings: docItem?.drawings,
       });
 
       confetti({

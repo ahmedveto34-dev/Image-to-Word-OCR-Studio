@@ -158,8 +158,15 @@ function parseMarkdownToSlides(markdown: string): ParsedSlideData[] {
  */
 export async function exportToPowerPoint(
   markdown: string,
-  options: PptxExportOptions
+  options: PptxExportOptions & { drawings?: Record<string, string> }
 ): Promise<void> {
+  let resolvedMarkdown = markdown;
+  if (options.drawings) {
+    for (const [key, base64] of Object.entries(options.drawings)) {
+      resolvedMarkdown = resolvedMarkdown.replace(new RegExp(key, 'g'), base64);
+    }
+  }
+
   const pptx = new pptxgenjs();
 
   const isRtl = options.readingDirection !== 'ltr';
@@ -219,7 +226,7 @@ export async function exportToPowerPoint(
   const currentTheme = themes[options.theme || 'luxury'];
 
   // Parse slides
-  const slidesData = parseMarkdownToSlides(markdown);
+  const slidesData = parseMarkdownToSlides(resolvedMarkdown);
 
   // 1. Cover / Title Slide
   const coverSlide = pptx.addSlide();

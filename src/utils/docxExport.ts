@@ -75,6 +75,19 @@ export function isArabicText(text: string): boolean {
 
 async function fetchImageBuffer(url: string): Promise<Uint8Array | null> {
   try {
+    if (url.startsWith('data:')) {
+      const parts = url.split(',');
+      const base64Data = parts.length > 1 ? parts[1] : '';
+      if (!base64Data) return null;
+      
+      const binaryStr = atob(base64Data);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+      }
+      return bytes;
+    }
     const res = await fetch(url);
     const blob = await res.blob();
     const arrayBuffer = await blob.arrayBuffer();
@@ -86,10 +99,13 @@ async function fetchImageBuffer(url: string): Promise<Uint8Array | null> {
 }
 
 async function getImageDimensions(url: string): Promise<{ width: number, height: number }> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve({ width: img.width, height: img.height });
-    img.onerror = reject;
+    img.onerror = () => {
+      console.warn('Failed to load image for dimensions, using fallback dimensions.');
+      resolve({ width: 500, height: 500 });
+    };
     img.src = url;
   });
 }
@@ -111,7 +127,20 @@ export async function generateDocxBlob(
   const baseSizePt = options.fontSize || 12;
   const halfPoints = baseSizePt * 2; // docx uses half-points (24 = 12pt)
 
-  const lines = markdownText.split(/\r?\n/);
+  let resolvedMarkdown = markdownText;
+  if (options.drawings) {
+    for (const [key, base64] of Object.entries(options.drawings)) {
+      resolvedMarkdown = resolvedMarkdown.replace(new RegExp(key, 'g'), base64);
+    }
+  }
+
+  // Strip markdown block if it wraps the whole document (AI hallucination)
+  const mdMatch = resolvedMarkdown.match(/```(?:markdown)?\n([\s\S]*?)\n```/i);
+  if (mdMatch && mdMatch[1].length > resolvedMarkdown.length * 0.5) {
+    resolvedMarkdown = mdMatch[1];
+  }
+  const preprocessedText = resolvedMarkdown.replace(/!\[(.*?)\]\((.*?)\)/g, '\n\n![$1]($2)\n\n');
+  const lines = preprocessedText.split(/\r?\n/);
   const children: (Paragraph | Table)[] = [];
 
   // Title page / Top Document Header Banner
@@ -190,15 +219,14 @@ export async function generateDocxBlob(
               top: { style: BorderStyle.SINGLE, size: 8, color: palette.border },
               bottom: { style: BorderStyle.SINGLE, size: 8, color: palette.border },
             },
-            children: [
-              new TextRun({
-                text: codeText,
+            children: codeBuffer.map((line, i) => new TextRun({
+                text: line,
                 bold: true,
                 font: 'Cambria Math',
                 size: halfPoints + 2,
                 color: palette.primary,
-              }),
-            ],
+                break: i > 0 ? 1 : 0
+              })),
           })
         );
       } else {
@@ -299,7 +327,7 @@ export async function generateDocxBlob(
                 new ImageRun({
                   data: imageBuffer,
                   transformation: { width, height },
-                  type: 'png'
+                  type: imgUrl.includes('image/jpeg') || imgUrl.includes('.jpg') || imgUrl.includes('.jpeg') ? 'jpg' : 'png'
                 })
               ]
             })
@@ -349,8 +377,7 @@ export async function generateDocxBlob(
     if (trimmed.startsWith('# ')) {
       children.push(
         new Paragraph({
-          heading: HeadingLevel.HEADING_1,
-          alignment: lineAlign,
+                    alignment: lineAlign,
           bidirectional: lineRtl,
           spacing: { before: 280, after: 140 },
           children: [
@@ -372,45 +399,9 @@ export async function generateDocxBlob(
     if (trimmed.startsWith('## ')) {
       const headingText = trimmed.replace(/^##\s+/, '');
       
-      // Look for page headers and optionally insert the original image
-      const pageMatch = headingText.match(/(?:الصفحة|Page)\s+(\d+)/i);
-      if (pageMatch && options.pages) {
-         const pageIdx = parseInt(pageMatch[1], 10) - 1;
-         const page = options.pages[pageIdx];
-         if (page && page.originalImage) {
-            const imageBuffer = await fetchImageBuffer(page.originalImage);
-            if (imageBuffer) {
-               try {
-                  const dims = await getImageDimensions(page.originalImage);
-                  const maxWidth = 550;
-                  const scale = Math.min(1, maxWidth / dims.width);
-                  const width = Math.round(dims.width * scale);
-                  const height = Math.round(dims.height * scale);
-                  
-                  children.push(
-                    new Paragraph({
-                       alignment: AlignmentType.CENTER,
-                       spacing: { before: 120, after: 240 },
-                       children: [
-                         new ImageRun({
-                           data: imageBuffer,
-                           transformation: { width, height },
-                           type: 'png'
-                         })
-                       ]
-                    })
-                  );
-               } catch (e) {
-                 console.error("Failed to inject image for page", pageIdx, e);
-               }
-            }
-         }
-      }
-
       children.push(
         new Paragraph({
-          heading: HeadingLevel.HEADING_2,
-          alignment: lineAlign,
+                    alignment: lineAlign,
           bidirectional: lineRtl,
           spacing: { before: 220, after: 120 },
           children: [
@@ -432,8 +423,7 @@ export async function generateDocxBlob(
     if (trimmed.startsWith('### ')) {
       children.push(
         new Paragraph({
-          heading: HeadingLevel.HEADING_3,
-          alignment: lineAlign,
+                    alignment: lineAlign,
           bidirectional: lineRtl,
           spacing: { before: 180, after: 100 },
           children: [
@@ -455,8 +445,7 @@ export async function generateDocxBlob(
     if (trimmed.startsWith('#### ')) {
       children.push(
         new Paragraph({
-          heading: HeadingLevel.HEADING_4,
-          alignment: lineAlign,
+                    alignment: lineAlign,
           bidirectional: lineRtl,
           spacing: { before: 140, after: 80 },
           children: [
@@ -491,7 +480,7 @@ export async function generateDocxBlob(
             fill: palette.accent,
           },
           border: quoteBorder,
-          children: parseInlineFormatting(quoteText, fontFamily, halfPoints, '334155', lineRtl),
+          children: await parseInlineFormatting(quoteText, fontFamily, halfPoints, '334155', lineRtl),
         })
       );
       continue;
@@ -516,7 +505,7 @@ export async function generateDocxBlob(
               size: halfPoints + 2,
               font: 'Arial',
             }),
-            ...parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B', lineRtl),
+            ...((await parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B', lineRtl)) as any),
           ],
         })
       );
@@ -566,7 +555,7 @@ export async function generateDocxBlob(
           alignment: lineAlign,
           bidirectional: lineRtl,
           spacing: { before: 40, after: 40 },
-          children: parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B', lineRtl),
+          children: await parseInlineFormatting(itemText, fontFamily, halfPoints, '1E293B', lineRtl),
         })
       );
       continue;
@@ -591,7 +580,7 @@ export async function generateDocxBlob(
               size: halfPoints,
               rightToLeft: lineRtl,
             }),
-            ...parseInlineFormatting(text, fontFamily, halfPoints, '1E293B', lineRtl),
+            ...((await parseInlineFormatting(text, fontFamily, halfPoints, '1E293B', lineRtl)) as any),
           ],
         })
       );
@@ -604,7 +593,7 @@ export async function generateDocxBlob(
         alignment: lineAlign,
         bidirectional: lineRtl,
         spacing: { before: 60, after: 60, line: 360 }, // 1.5 line spacing
-        children: parseInlineFormatting(rawLine, fontFamily, halfPoints, '1E293B', lineRtl),
+        children: await parseInlineFormatting(rawLine, fontFamily, halfPoints, '1E293B', lineRtl),
       })
     );
   }

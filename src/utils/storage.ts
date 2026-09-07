@@ -111,9 +111,56 @@ export function seedInitialSampleIfEmpty(): void {
  */
 export function saveLocalDocuments(docs: DocumentItem[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+    // Strip heavy base64 image data before saving to prevent QuotaExceededError
+    let optimizedDocs = docs.map(doc => ({
+      ...doc,
+      pages: doc.pages.map(page => ({
+        ...page,
+        originalImage: undefined,
+        enhancedImage: undefined,
+        croppedImage: undefined,
+      }))
+    }));
+    
+    let success = false;
+    while (!success && optimizedDocs.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(optimizedDocs));
+        success = true;
+      } catch (err: any) {
+        if (err.name === 'QuotaExceededError' || (err.message && err.message.toLowerCase().includes('quota'))) {
+          console.warn('LocalStorage quota exceeded. Attempting to free space...');
+          
+          let strippedAny = false;
+          const base64Regex = /data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g;
+          
+          optimizedDocs = optimizedDocs.map(d => {
+            if (base64Regex.test(d.combinedMarkdown) || d.pages.some(p => base64Regex.test(p.extractedMarkdown))) {
+              strippedAny = true;
+              return {
+                ...d,
+                combinedMarkdown: d.combinedMarkdown.replace(base64Regex, '[تم إزالة الصورة لتوفير المساحة]'),
+                pages: d.pages.map(p => ({
+                  ...p,
+                  extractedMarkdown: p.extractedMarkdown.replace(base64Regex, '[تم إزالة الصورة لتوفير المساحة]')
+                }))
+              };
+            }
+            return d;
+          });
+
+          if (!strippedAny) {
+            // If no heavy base64 left, remove the oldest document (last in the array)
+            optimizedDocs.pop();
+          }
+        } else {
+          console.error('Failed to save local documents:', err);
+          break;
+        }
+      }
+    }
   } catch (err) {
-    console.error('Failed to save local documents:', err);
+    console.error('Fatal error preparing local documents for save:', err);
   }
 }
 

@@ -209,7 +209,13 @@ YOUR CORE MANDATES:
    - Preserve headers, subheadings (using #, ##, ###), bold points, bulleted/numbered lists, callout quotes, and paragraphs.
    - For multi-column text or book pages, transcribe in logical reading order (RTL for Arabic, LTR for English).
 
-6. **OUTPUT FORMAT**:
+6. **ENGINEERING DRAWINGS & DIAGRAMS**:
+   - If the document contains engineering drawings, architectural plans, graphs, charts, or illustrations, you MUST isolate their position.
+   - VERY IMPORTANT: The bounding box MUST tightly wrap ONLY the visual/geometric shape itself. Any text, questions, or paragraphs located above, below, or around the shape MUST NOT be included in the image bounding box. You must transcribe that text normally as part of the markdown.
+   - Insert exactly \`![](__DRAWING_0__)\` in the markdown where the first drawing appears, \`![](__DRAWING_1__)\` for the second, etc.
+   - Add a \`drawings\` array to the root JSON object containing the normalized bounding boxes (0 to 1000) for each drawing. Example: "drawings": [{"id": "__DRAWING_0__", "box": [ymin, xmin, ymax, xmax]}]
+
+7. **OUTPUT FORMAT**:
    You MUST return a valid JSON object strictly matching this schema:
    {
      "title": "A concise, appropriate title for the document in its primary language",
@@ -218,6 +224,7 @@ YOUR CORE MANDATES:
      "markdown": "The complete, fully formatted Markdown text of the document with headings, tables, bold text, math, and paragraphs",
      "plainText": "The unformatted plain text extraction",
      "summary": "A 1-2 sentence overview of the document's content",
+     "drawings": [{"id": "__DRAWING_0__", "box": [0, 0, 100, 100]}],
      "detectedElements": {
        "hasTables": boolean,
        "hasMath": boolean,
@@ -361,14 +368,14 @@ app.post('/api/ai/transform', async (req: Request, res: Response) => {
     const response = await callGeminiWithFallback(ai, {
       contents: prompt,
       config: {
-        systemInstruction,
+        systemInstruction: systemInstruction + ' IMPORTANT: Return ONLY the transformed text. DO NOT add any conversational preamble like "Here is the text". DO NOT wrap the output in ```markdown blocks.',
         temperature: 0.2,
       },
     });
 
     res.json({
       success: true,
-      result: response.text || '',
+      result: (response.text || '').replace(/^\s*```(?:markdown)?\n([\s\S]*?)\n```\s*$/i, '$1'),
     });
   } catch (error: any) {
     console.error('AI Transform error:', error);

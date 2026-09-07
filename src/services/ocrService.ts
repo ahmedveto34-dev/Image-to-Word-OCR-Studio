@@ -87,7 +87,13 @@ YOUR CORE MANDATES:
    - Preserve headers, subheadings (using #, ##, ###), bold points, bulleted/numbered lists, callout quotes, and paragraphs.
    - For multi-column text or book pages, transcribe in logical reading order (RTL for Arabic, LTR for English).
 
-6. **OUTPUT FORMAT**:
+6. **ENGINEERING DRAWINGS & DIAGRAMS**:
+   - If the document contains engineering drawings, architectural plans, graphs, charts, or illustrations, you MUST isolate their position.
+   - VERY IMPORTANT: The bounding box MUST tightly wrap ONLY the visual/geometric shape itself. Any text, questions, or paragraphs located above, below, or around the shape MUST NOT be included in the image bounding box. You must transcribe that text normally as part of the markdown.
+   - Insert exactly \`![](__DRAWING_0__)\` in the markdown where the first drawing appears, \`![](__DRAWING_1__)\` for the second, etc.
+   - Add a \`drawings\` array to the root JSON object containing the normalized bounding boxes (0 to 1000) for each drawing. Example: "drawings": [{"id": "__DRAWING_0__", "box": [ymin, xmin, ymax, xmax]}]
+
+7. **OUTPUT FORMAT**:
    You MUST return a valid JSON object strictly matching this schema:
    {
      "title": "A concise, appropriate title for the document in its primary language",
@@ -96,6 +102,7 @@ YOUR CORE MANDATES:
      "markdown": "The complete, fully formatted Markdown text of the document with headings, tables, bold text, math, and paragraphs",
      "plainText": "The unformatted plain text extraction",
      "summary": "A 1-2 sentence overview of the document's content",
+     "drawings": [{"id": "__DRAWING_0__", "box": [0, 0, 100, 100]}],
      "detectedElements": {
        "hasTables": boolean,
        "hasMath": boolean,
@@ -180,6 +187,7 @@ export async function processOcrImage(
   mimeType: string,
   options: OcrOptions = {}
 ): Promise<OCRResult> {
+  let result: OCRResult | null = null;
   // 1. Try server endpoint first
   try {
     const serverResponse = await fetch('/api/ocr/process', {
@@ -195,30 +203,113 @@ export async function processOcrImage(
     if (serverResponse.ok) {
       const data = await serverResponse.json();
       if (data?.success && data?.data) {
-        return data.data;
+        result = data.data;
+      }
+    } else {
+      // If server returned 404 (common on Vercel without serverless config) or 500
+      const errData = await serverResponse.json().catch(() => ({}));
+      const errorMsg = errData?.error || `Server HTTP ${serverResponse.status}`;
+
+      // If server failed, check if we have a client-side key to fallback
+      const clientKey = getClientStoredApiKey();
+      if (clientKey) {
+        result = await callClientSideGeminiOcr(imageBase64, mimeType, options, clientKey);
+      } else {
+        throw new Error(errorMsg);
       }
     }
-
-    // If server returned 404 (common on Vercel without serverless config) or 500
-    const errData = await serverResponse.json().catch(() => ({}));
-    const errorMsg = errData?.error || `Server HTTP ${serverResponse.status}`;
-
-    // If server failed, check if we have a client-side key to fallback
-    const clientKey = getClientStoredApiKey();
-    if (clientKey) {
-      return await callClientSideGeminiOcr(imageBase64, mimeType, options, clientKey);
-    }
-
-    throw new Error(errorMsg);
   } catch (err: any) {
     // If network error (e.g. static host like Vercel with no server backend)
     const clientKey = getClientStoredApiKey();
     if (clientKey) {
-      return await callClientSideGeminiOcr(imageBase64, mimeType, options, clientKey);
+      result = await callClientSideGeminiOcr(imageBase64, mimeType, options, clientKey);
+    } else {
+      throw err;
     }
-
-    throw err;
   }
+
+  if (result) {
+    result = await processDrawings(result, imageBase64, mimeType);
+    return result;
+  }
+  
+  throw new Error('فشل استخراج النص بواسطة نماذج الذكاء الاصطناعي');
+}
+
+async function processDrawings(data: OCRResult & { drawings?: any }, base64: string, mimeType: string): Promise<OCRResult> {
+  const originalDrawings = data.drawings;
+  data.drawings = {}; // Initialize as dictionary
+
+  if (!originalDrawings || !Array.isArray(originalDrawings) || originalDrawings.length === 0) {
+    return data;
+  }
+  
+  // Ensure we have a valid data URL
+  let imageSrc = base64;
+  if (!base64.startsWith('data:')) {
+    imageSrc = `data:${mimeType || 'image/jpeg'};base64,${base64}`;
+  }
+
+  for (const drawing of originalDrawings) {
+    if (!drawing.id || !drawing.box || drawing.box.length !== 4) continue;
+    
+    try {
+       const croppedBase64 = await cropImage(imageSrc, drawing.box);
+       const drawingKey = `__${drawing.id.replace(/__/g, '')}__`;
+       data.drawings[drawingKey] = croppedBase64;
+    } catch (e) {
+       console.error("Failed to crop drawing", drawing.id, e);
+    }
+  }
+  return data;
+}
+
+async function cropImage(imageSrc: string, box: [number, number, number, number]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const [ymin, xmin, ymax, xmax] = box;
+        
+        // Coordinates are normalized 0-1000
+        const pxYmin = Math.floor((ymin / 1000) * img.height);
+        const pxXmin = Math.floor((xmin / 1000) * img.width);
+        const pxYmax = Math.ceil((ymax / 1000) * img.height);
+        const pxXmax = Math.ceil((xmax / 1000) * img.width);
+        
+        let width = pxXmax - pxXmin;
+        let height = pxYmax - pxYmin;
+        
+        // Add a small 10px padding if possible to ensure we don't clip lines
+        const padding = Math.max(15, Math.floor(Math.min(img.width, img.height) * 0.03)); // 3% padding
+        const startX = Math.max(0, pxXmin - padding);
+        const startY = Math.max(0, pxYmin - padding);
+        const endX = Math.min(img.width, pxXmax + padding);
+        const endY = Math.min(img.height, pxYmax + padding);
+        
+        width = endX - startX;
+        height = endY - startY;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(imageSrc);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, startX, startY, width, height, 0, 0, width, height);
+        
+        resolve(canvas.toDataURL('image/png'));
+      } catch (err) {
+        resolve(imageSrc);
+      }
+    };
+    img.onerror = () => resolve(imageSrc);
+    img.src = imageSrc;
+  });
 }
 
 export function detectTextPrimaryLanguage(text: string): 'ar' | 'en' {
@@ -303,14 +394,14 @@ export async function transformTextWithAi(
         model: modelName,
         contents: userPrompt,
         config: {
-          systemInstruction,
+          systemInstruction: systemInstruction + ' IMPORTANT: Return ONLY the transformed text. DO NOT add any conversational preamble like "Here is the text". DO NOT wrap the output in ```markdown blocks.',
           temperature: 0.2,
         },
       });
 
       if (response.text) {
         return {
-          result: response.text,
+          result: response.text.replace(/^\s*```(?:markdown)?\n([\s\S]*?)\n```\s*$/i, '$1'),
           sourceLang: detectedSource,
           targetLang,
         };

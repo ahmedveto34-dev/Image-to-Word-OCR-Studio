@@ -55,6 +55,7 @@ export function App() {
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
   const [isAdminSettingsModalOpen, setIsAdminSettingsModalOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const t = translations[lang];
 
@@ -72,6 +73,8 @@ export function App() {
       sessionStorage.setItem('tahweel_unlocked', 'true');
     } catch (e) {}
     setIsUnlocked(true);
+    setShowWelcome(true);
+    setTimeout(() => setShowWelcome(false), 3500);
   };
 
   // Load cloud/local saved docs on launch
@@ -155,6 +158,26 @@ export function App() {
         onLockApp={handleLockApp}
         onOpenAdminSettingsModal={() => setIsAdminSettingsModalOpen(true)}
       />
+
+      {/* Welcome Message Overlay */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fadeInOut" />
+          <div className="relative bg-white border border-amber-200/50 shadow-2xl shadow-amber-500/10 rounded-3xl p-8 max-w-md w-full text-center flex flex-col items-center animate-slideUpFade">
+            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-xs">
+              <Sparkles className="w-10 h-10 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-2">
+              {lang === 'ar' ? 'مرحباً بك مجدداً' : 'Welcome Back'}
+            </h2>
+            <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto leading-relaxed">
+              {lang === 'ar' 
+                ? 'استوديو التحويل الذكي جاهز الآن لمعالجة ملفاتك باحترافية'
+                : 'The Smart OCR Studio is now ready to process your files'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Container View */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">

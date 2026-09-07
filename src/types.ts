@@ -20,6 +20,7 @@ export interface OCRResult {
   plainText: string;
   summary: string;
   detectedElements: OCRDetectedElements;
+  drawings?: Record<string, string>;
 }
 
 export interface DocumentPage {
@@ -35,6 +36,7 @@ export interface DocumentPage {
   status: 'idle' | 'processing' | 'completed' | 'error';
   errorMessage?: string;
   detectedElements?: OCRDetectedElements;
+  drawings?: Record<string, string>;
 }
 
 export interface DocumentItem {
@@ -50,6 +52,7 @@ export interface DocumentItem {
   createdAt: string;
   updatedAt: string;
   isSynced: boolean;
+  drawings?: Record<string, string>;
   stats: {
     totalPages: number;
     totalWords: number;
@@ -81,6 +84,7 @@ export interface DocxExportOptions {
   headerText?: string;
   themeColor: 'gold' | 'navy' | 'emerald' | 'crimson' | 'slate';
   rtl: boolean;
+  drawings?: Record<string, string>;
   highlightMath: boolean;
   pages?: any[];
 }
@@ -94,6 +98,7 @@ export interface PdfExportOptions {
   includeHeader: boolean;
   includeFooter: boolean;
   rtl: boolean;
+  drawings?: Record<string, string>;
 }
 
 export interface MathEvaluationResult {
