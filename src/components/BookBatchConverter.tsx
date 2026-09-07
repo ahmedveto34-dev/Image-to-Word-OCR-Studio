@@ -554,6 +554,7 @@ export const BookBatchConverter: React.FC<BookBatchConverterProps> = ({
           onClose={() => setIsExportOpen(false)}
           documentTitle={completedDoc.title}
           markdownContent={completedDoc.combinedMarkdown}
+          document={completedDoc}
           lang={lang}
         />
       )}

@@ -14,6 +14,7 @@ import {
   PageNumber,
   Packer,
   ShadingType,
+  ImageRun,
 } from 'docx';
 import { DocxExportOptions } from '../types';
 
@@ -70,6 +71,27 @@ export const THEME_PALETTES = {
  */
 export function isArabicText(text: string): boolean {
   return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+}
+
+async function fetchImageBuffer(url: string): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+  } catch (err) {
+    console.error("Failed to fetch image buffer", err);
+    return null;
+  }
+}
+
+async function getImageDimensions(url: string): Promise<{ width: number, height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 /**
@@ -255,6 +277,58 @@ export async function generateDocxBlob(
       continue;
     }
 
+    // Markdown Image: ![alt](url)
+    const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+    if (imgMatch) {
+      const altText = imgMatch[1];
+      const imgUrl = imgMatch[2];
+      const imageBuffer = await fetchImageBuffer(imgUrl);
+      if (imageBuffer) {
+        try {
+          const dims = await getImageDimensions(imgUrl);
+          const maxWidth = 550;
+          const scale = Math.min(1, maxWidth / dims.width);
+          const width = Math.round(dims.width * scale);
+          const height = Math.round(dims.height * scale);
+          
+          children.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 120, after: 120 },
+              children: [
+                new ImageRun({
+                  data: imageBuffer,
+                  transformation: { width, height },
+                  type: 'png'
+                })
+              ]
+            })
+          );
+          
+          if (altText) {
+             children.push(
+               new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 40, after: 120 },
+                  children: [
+                    new TextRun({
+                      text: altText,
+                      italics: true,
+                      size: halfPoints - 2,
+                      color: '64748B',
+                      font: fontFamily
+                    })
+                  ]
+               })
+             );
+          }
+          continue;
+        } catch(e) {
+          console.error("Failed to inject markdown image", e);
+        }
+      }
+    }
+
     // Empty line
     if (!trimmed) {
       children.push(
@@ -296,6 +370,43 @@ export async function generateDocxBlob(
 
     // Heading 2 (## Heading)
     if (trimmed.startsWith('## ')) {
+      const headingText = trimmed.replace(/^##\s+/, '');
+      
+      // Look for page headers and optionally insert the original image
+      const pageMatch = headingText.match(/(?:الصفحة|Page)\s+(\d+)/i);
+      if (pageMatch && options.pages) {
+         const pageIdx = parseInt(pageMatch[1], 10) - 1;
+         const page = options.pages[pageIdx];
+         if (page && page.originalImage) {
+            const imageBuffer = await fetchImageBuffer(page.originalImage);
+            if (imageBuffer) {
+               try {
+                  const dims = await getImageDimensions(page.originalImage);
+                  const maxWidth = 550;
+                  const scale = Math.min(1, maxWidth / dims.width);
+                  const width = Math.round(dims.width * scale);
+                  const height = Math.round(dims.height * scale);
+                  
+                  children.push(
+                    new Paragraph({
+                       alignment: AlignmentType.CENTER,
+                       spacing: { before: 120, after: 240 },
+                       children: [
+                         new ImageRun({
+                           data: imageBuffer,
+                           transformation: { width, height },
+                           type: 'png'
+                         })
+                       ]
+                    })
+                  );
+               } catch (e) {
+                 console.error("Failed to inject image for page", pageIdx, e);
+               }
+            }
+         }
+      }
+
       children.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
@@ -304,7 +415,7 @@ export async function generateDocxBlob(
           spacing: { before: 220, after: 120 },
           children: [
             new TextRun({
-              text: trimmed.replace(/^##\s+/, ''),
+              text: headingText,
               bold: true,
               size: halfPoints + 6,
               color: palette.secondary,

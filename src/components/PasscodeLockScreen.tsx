@@ -20,12 +20,11 @@ interface PasscodeLockScreenProps {
   lang?: 'ar' | 'en';
 }
 
-const CORRECT_PIN = '2008';
-
 export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
   onUnlock,
   lang = 'ar',
 }) => {
+  const CORRECT_PIN = localStorage.getItem('tahweel_global_passcode') || '2008';
   const isAr = lang === 'ar';
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
@@ -143,7 +142,7 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-[#071329] via-[#0d2146] to-[#081836] text-slate-100 font-cairo overflow-y-auto p-2 sm:p-4 select-none relative"
+      className="fixed inset-0 w-full h-[100dvh] flex items-center justify-center bg-[#0B1B3D] text-slate-100 font-cairo p-4 select-none overflow-y-auto z-50"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
@@ -175,7 +174,7 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#3b82f618_1px,transparent_1px),linear-gradient(to_bottom,#3b82f618_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_50%,#000_80%,transparent_100%)] pointer-events-none" />
 
       {/* Main Luxury Lock Card - Compact & Screen-Fitted */}
-      <div className="relative w-full max-w-sm my-auto p-4 sm:p-5 rounded-3xl bg-slate-950/85 backdrop-blur-2xl border border-blue-500/30 shadow-[0_20px_60px_rgba(3,15,38,0.85)] ring-1 ring-blue-400/20 flex flex-col items-center text-center">
+      <div className="relative w-full w-full max-w-[360px] my-auto p-5 sm:p-6 sm:max-w-md rounded-3xl bg-slate-950/85 backdrop-blur-2xl border border-blue-500/30 shadow-[0_20px_60px_rgba(3,15,38,0.85)] ring-1 ring-blue-400/20 flex flex-col items-center text-center">
         
         {/* Brand Crest / Icon with unlock transition */}
         <div className="relative mb-2 group cursor-pointer" onClick={() => inputRef.current?.focus()}>
@@ -278,21 +277,21 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
           )}
         </div>
 
-        {/* Luxury Keypad - Compact & 100% visible on all viewports */}
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full max-w-[240px]">
+        {/* Luxury Keypad - Elegant & Clear */}
+        <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
           {keypadNumbers.map(({ num, sub }) => (
             <button
               key={num}
               type="button"
               onClick={() => handleKeyPress(num)}
               disabled={isSuccess}
-              className="h-10 sm:h-11 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500/25 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-100 active:scale-95 shadow-xs group cursor-pointer"
+              className="h-14 sm:h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500/25 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-100 active:scale-95 shadow-xs group cursor-pointer"
             >
-              <span className="text-base sm:text-lg font-black font-mono group-hover:text-amber-400 transition-colors leading-none">
+              <span className="text-xl sm:text-2xl font-black font-mono group-hover:text-amber-400 transition-colors leading-none mb-0.5">
                 {num}
               </span>
               {sub && (
-                <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase">
+                <span className="text-[9px] text-slate-400 font-mono tracking-widest uppercase">
                   {sub}
                 </span>
               )}
@@ -304,7 +303,7 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             type="button"
             onClick={handleClear}
             disabled={isSuccess || pin.length === 0}
-            className="h-10 sm:h-11 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 text-[11px] font-bold transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
+            className="h-14 sm:h-16 rounded-2xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 text-xs font-bold transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
           >
             {isAr ? 'مسح' : 'Clear'}
           </button>
@@ -314,12 +313,12 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             type="button"
             onClick={() => handleKeyPress('0')}
             disabled={isSuccess}
-            className="h-10 sm:h-11 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500/25 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-100 active:scale-95 shadow-xs group cursor-pointer"
+            className="h-14 sm:h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500/25 active:border-amber-400/60 border border-slate-700/80 text-white flex flex-col items-center justify-center transition-all duration-100 active:scale-95 shadow-xs group cursor-pointer"
           >
-            <span className="text-base sm:text-lg font-black font-mono group-hover:text-amber-400 transition-colors leading-none">
+            <span className="text-xl sm:text-2xl font-black font-mono group-hover:text-amber-400 transition-colors leading-none mb-0.5">
               0
             </span>
-            <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase">
+            <span className="text-[9px] text-slate-400 font-mono tracking-widest uppercase">
               +
             </span>
           </button>
@@ -329,21 +328,13 @@ export const PasscodeLockScreen: React.FC<PasscodeLockScreenProps> = ({
             type="button"
             onClick={handleDelete}
             disabled={isSuccess || pin.length === 0}
-            className="h-10 sm:h-11 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
+            className="h-14 sm:h-16 rounded-2xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center"
             title={isAr ? 'حذف رقم' : 'Backspace'}
           >
-            <Delete className="w-4 h-4" />
+            <Delete className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Bottom Hint / Info Bar without exposing PIN */}
-        <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 w-full flex items-center justify-between text-[11px] text-slate-400">
-          <span className="flex items-center gap-1 text-slate-400 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-            <span>{isAr ? 'وصول مشفر وآمن' : 'Encrypted Access'}</span>
-          </span>
-          <span className="font-mono text-amber-300 font-bold text-[11px]">MR:Waheed</span>
-        </div>
 
       </div>
 

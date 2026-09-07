@@ -82,6 +82,7 @@ export interface DocxExportOptions {
   themeColor: 'gold' | 'navy' | 'emerald' | 'crimson' | 'slate';
   rtl: boolean;
   highlightMath: boolean;
+  pages?: any[];
 }
 
 export interface PdfExportOptions {

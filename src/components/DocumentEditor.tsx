@@ -1125,6 +1125,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           onClose={() => setIsExportModalOpen(false)}
           documentTitle={doc.title}
           markdownContent={doc.combinedMarkdown}
+          document={doc}
           lang={lang}
           onExportPdf={handlePdfExport}
         />

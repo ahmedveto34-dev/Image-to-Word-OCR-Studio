@@ -28,6 +28,7 @@ interface ExportModalProps {
   onClose: () => void;
   documentTitle: string;
   markdownContent: string;
+  document?: import("../types").DocumentItem;
   lang: Language;
   onExportPdf?: () => void;
 }
@@ -39,6 +40,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   markdownContent,
   lang,
   onExportPdf,
+  document: docItem,
 }) => {
   const t = translations[lang];
 
@@ -106,7 +108,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleDownloadDocx = async () => {
     setIsExporting(true);
     try {
-      const blob = await generateDocxBlob(markdownContent, options);
+      const exportOpts = { ...options, pages: docItem?.pages };
+      const blob = await generateDocxBlob(markdownContent, exportOpts);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -21,6 +21,9 @@ import {
   PasscodeLockScreen 
 } from './components/PasscodeLockScreen';
 import { 
+  AdminSettingsModal 
+} from './components/AdminSettingsModal';
+import { 
   ApiKeyModal 
 } from './components/ApiKeyModal';
 import { 
@@ -50,6 +53,7 @@ export function App() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [activeDocument, setActiveDocument] = useState<DocumentItem | null>(null);
   const [isMathModalOpen, setIsMathModalOpen] = useState(false);
+  const [isAdminSettingsModalOpen, setIsAdminSettingsModalOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
   const t = translations[lang];
@@ -149,7 +153,7 @@ export function App() {
         activeDocTitle={activeDocument?.title}
         onNewScan={() => handleTabChange('convert')}
         onLockApp={handleLockApp}
-        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+        onOpenAdminSettingsModal={() => setIsAdminSettingsModalOpen(true)}
       />
 
       {/* Main Container View */}
@@ -167,7 +171,7 @@ export function App() {
               document={activeDocument}
               onUpdateDocument={handleUpdateDocument}
               lang={lang}
-              onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+              onOpenAdminSettingsModal={() => setIsAdminSettingsModalOpen(true)}
             />
           ) : (
             <div className="text-center py-20 bg-white rounded-3xl border border-slate-200/90 shadow-sm space-y-4 max-w-2xl mx-auto px-6">
@@ -228,6 +232,14 @@ export function App() {
           }}
         />
       )}
+
+      {/* Admin Settings Modal */}
+      <AdminSettingsModal
+        isOpen={isAdminSettingsModalOpen}
+        onClose={() => setIsAdminSettingsModalOpen(false)}
+        lang={lang}
+        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+      />
 
       {/* Gemini AI API Key Settings Modal */}
       <ApiKeyModal

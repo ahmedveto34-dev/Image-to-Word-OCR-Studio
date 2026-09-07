@@ -22,7 +22,7 @@ export interface RenderedPdfPage {
 export async function renderPdfToImages(
   file: File | ArrayBuffer,
   onProgress?: (current: number, total: number) => void,
-  maxPages: number = 50
+  maxPages: number = 1000
 ): Promise<RenderedPdfPage[]> {
   const arrayBuffer = file instanceof File ? await file.arrayBuffer() : file;
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });

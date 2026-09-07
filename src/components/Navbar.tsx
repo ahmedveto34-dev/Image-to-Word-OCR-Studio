@@ -9,7 +9,8 @@ import {
   Calculator,
   Plus,
   Lock,
-  Key
+  Key,
+  Settings
 } from 'lucide-react';
 import { Language, AppTab } from '../types';
 import { translations } from '../utils/i18n';
@@ -26,7 +27,7 @@ interface NavbarProps {
   activeDocTitle?: string;
   onNewScan?: () => void;
   onLockApp?: () => void;
-  onOpenApiKeyModal?: () => void;
+  onOpenAdminSettingsModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeDocTitle,
   onNewScan,
   onLockApp,
-  onOpenApiKeyModal,
+  onOpenAdminSettingsModal,
 }) => {
   const t = translations[lang];
 
@@ -181,16 +182,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>{t.nav.language}</span>
           </button>
 
-          {/* API Key Settings Button */}
-          {onOpenApiKeyModal && (
+          {/* Admin Settings Button */}
+          {onOpenAdminSettingsModal && (
             <button
               id="btn-api-key-modal"
-              onClick={onOpenApiKeyModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-xs font-bold text-amber-900 transition-all shadow-2xs active:scale-95"
-              title={lang === 'ar' ? 'إعداد مفتاح الذكاء الاصطناعي (Gemini API Key)' : 'Gemini API Key Settings'}
+              onClick={onOpenAdminSettingsModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-900 transition-all shadow-2xs active:scale-95"
+              title={lang === 'ar' ? 'إعدادات الإدارة (Admin Settings)' : 'Admin Settings'}
             >
-              <Key className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline font-mono">{lang === 'ar' ? 'مفتاح API' : 'API Key'}</span>
+              <Settings className="w-3.5 h-3.5 text-slate-700" />
+              <span className="hidden sm:inline font-mono">{lang === 'ar' ? 'الإدارة' : 'Admin'}</span>
             </button>
           )}
 
